@@ -32,7 +32,7 @@ EOF
 
 header() {
   t_width=$(tput cols 2>/dev/null)
-  if [[ "$t_width" -gt 115 ]]; then
+  if [[ "$t_width" -gt 90 ]]; then
     echo -e "$(
       cat <<EOF
         ${CYAN}
@@ -158,7 +158,7 @@ APP="$BASE/root/app/calibre-web/cps"
 OLD_CONFIG="/config"
 CONFIG="/var/lib/cwa"
 OLD_DB="$OLD_CONFIG/app.db"
-DB="/root/.calibre-web/app.db"
+DB="/opt/calibre-web/.calibre-web/app.db"
 OLD_META_TEMP="$OLD_BASE/metadata_temp"
 META_TEMP="$CONFIG/metadata_temp"
 OLD_META_LOGS="$OLD_BASE/metadata_change_logs"
@@ -207,12 +207,15 @@ install() {
   msg_start "Installing Calibre-Web (Patience)..."
   rm -rf /usr/lib/python3.*/EXTERNALLY-MANAGED
   mkdir -p /opt/calibre-web
-  $shh apt-get install -y calibre
-  $shh wget https://github.com/janeczku/calibre-web/raw/master/library/metadata.db -P /opt/calibre-web
+  $shh apt-get install -y calibre --no-install-recommends
+  wget -q https://github.com/janeczku/calibre-web/raw/master/library/metadata.db -P /opt/calibre-web
   $shh pip install calibreweb[goodreads,metadata,kobo]
-  $shh pip install jsonschema
   pip show calibreweb | grep Version | cut -d' ' -f2 >/opt/calibre-web/calibreweb_version.txt
   msg_done "Installed Calibre-Web!"
+
+  # Create calibre user
+  useradd -U -s /usr/sbin/nologin -M -d /opt/calibre-web calibre
+  chown -R calibre:calibre /opt/calibre-web
 
   # Create service file
   cat <<EOF >/etc/systemd/system/cps.service
@@ -222,6 +225,8 @@ install() {
 
   [Service]
   Type=simple
+  User=calibre
+  Group=calibre
   WorkingDirectory=/opt/calibre-web
   ExecStart=/usr/local/bin/cps
   TimeoutStopSec=20
@@ -240,9 +245,9 @@ EOF
   msg_start "Installing Calibre-Web Automated..."
   cd /tmp
   RELEASE=$(curl -s https://api.github.com/repos/crocodilestick/Calibre-Web-Automated/releases/latest | grep "tag_name" | awk '{print substr($2, 3, length($2)-4) }')
-  wget -q "https://github.com/crocodilestick/Calibre-Web-Automated/archive/refs/tags/V${RELEASE}.zip" -O cwa.zip
+  wget -q "https://github.com/crocodilestick/Calibre-Web-Automated/archive/refs/tags/V$RELEASE.zip" -O cwa.zip
   unzip -q cwa.zip
-  mv Calibre-Web-Automated-${RELEASE}/ /opt/cwa
+  mv Calibre-Web-Automated-"$RELEASE"/ /opt/cwa
   cd /opt/cwa
   $shh pip install -r requirements.txt
   msg_done "Calibre-Web Automated installed!"
@@ -256,6 +261,7 @@ EOF
   # patcher functions
   replacer
   script_generator
+  chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST",kepubify,calibre-web}
   msg_done "Patching operations successful!"
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
@@ -266,6 +272,8 @@ EOF
 
   [Service]
   Type=simple
+  User=calibre
+  Group=calibre
   WorkingDirectory=/opt/cwa
   ExecStart=/usr/bin/python3 /opt/cwa/scripts/auto_library.py
   TimeoutStopSec=10
@@ -283,6 +291,8 @@ EOF
 
   [Service]
   Type=simple
+  User=calibre
+  Group=calibre
   WorkingDirectory=/opt/cwa
   ExecStart=/usr/bin/bash -c /opt/cwa/scripts/ingest-service.sh
   TimeoutStopSec=10
@@ -300,6 +310,8 @@ EOF
 
   [Service]
   Type=simple
+  User=calibre
+  Group=calibre
   WorkingDirectory=/opt/cwa
   ExecStart=/usr/bin/bash -c /opt/cwa/scripts/change-detector.sh
   TimeoutStopSec=10
@@ -327,6 +339,8 @@ EOF
 
   [Service]
   Type=simple
+  User=calibre
+  Group=calibre
   WorkingDirectory=/var/lib/cwa/processed_books
   ExecStart=/usr/bin/python3 /opt/cwa/scripts/auto_zip.py
   Restart=on-failure
@@ -359,7 +373,12 @@ EOF
   $shh apt autoclean
   rm -f /tmp/cwa.zip
   sleep 3
-  if [[ "$(systemctl is-active cwa.target)" == "active" ]]; then
+  local services=("cps" "cwa-ingester" "cwa-change-detector")
+  local status=""
+  status=$(for service in "${services[@]}"; do
+    systemctl is-active "$service" | grep active -
+  done)
+  if [[ "$status" ]]; then
     msg_done "Calibre-Web Automated is live!"
     sleep 1
     LOCAL_IP=$(hostname -I | awk '{print $1}')
@@ -368,7 +387,7 @@ EOF
     msg_info "${PURPLE}Default creds are user: 'admin', password: 'admin123'${CLR}"
     exit 0
   else
-    die "Something's not right, please check 'systemctl status cps'!"
+    die "Something's not right, please check CWA services!"
   fi
 }
 
@@ -404,7 +423,8 @@ replacer() {
     $APP/admin.py $APP/render_template.py
   sed -i "s|\"$CONFIG/post_request\"|\"$OLD_CONFIG/post_request\"|" $APP/cwa_functions.py
   sed -i -e "/^# Define user/,/^os.chown/d" -e "/nbp.set_l\|self.set_l/d" -e "/def set_libr/,/^$/d" \
-    ./scripts/convert_library.py ./scripts/kindle_epub_fixer.py ./scripts/ingest_processor.py
+    ./scripts/{convert_library.py,kindle_epub_fixer.py,ingest_processor.py}
+  sed -i "/chown/d" ./scripts/auto_library.py
   sed -i -n '/Linuxserver.io/{x;d;};1h;1!{x;p;};${x;p;}' $APP/templates/admin.html &&
     sed -i -e "/Linuxserver.io/,+3d" \
       -e "s/commit/calibreweb_version/" $APP/templates/admin.html
