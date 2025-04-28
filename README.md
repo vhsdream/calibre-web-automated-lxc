@@ -26,19 +26,8 @@ It's pretty. But you can also use `-v` to tell it to spew out all the output to 
 
 1. Start with a freshly-baked Debian 12 LXC in Proxmox (a bare-metal Debian 12 might work as well, have not tested).
    - Support for other LXCs may be added in the future
-2. Download the latest version of the script.
-
-```bash
-wget https://github.com/vhsdream/calibre-web-automated-lxc/releases/download/v1.0.0/cwa-lxc.zip
-```
-
-3. Unzip (the script!)
-
-```bash
-unzip cwa-lxc.zip
-```
-
-4. Run the script as root.
+2. Get the latest version of the script - grab from [Releases](https://github.com/vhsdream/calibre-web-automated-lxc/releases/latest) or clone the repo.
+3. Run the script as root.
 
 ```bash
 bash cwa-lxc.sh [-h,--help][-v,--verbose][--no-color] install
