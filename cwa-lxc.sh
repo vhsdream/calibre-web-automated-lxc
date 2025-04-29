@@ -114,6 +114,7 @@ msg_info() {
 # Exception and error handling
 msg_err() {
   if [[ -n "$BLING_PID" ]] && ps -p "$BLING_PID" >/dev/null; then kill "$BLING_PID" >/dev/null; fi
+  printf "\e[?25h"
   echo >&2 -e "${RED}${1-}${CLR}"
 }
 
@@ -187,8 +188,6 @@ install() {
     libsasl2-2 \
     libxi6 \
     libxslt1.1 \
-    python3-pip \
-    python3-venv \
     xdg-utils \
     inotify-tools \
     zip \
@@ -204,18 +203,28 @@ install() {
   ./kepubify-linux-64bit --version | awk '{print substr($2 ,2)}' >/opt/kepubify/version.txt
   msg_done "Installed Kepubify!"
 
-  msg_start "Installing Calibre-Web (Patience)..."
-  rm -rf /usr/lib/python3.*/EXTERNALLY-MANAGED
-  mkdir -p /opt/calibre-web
+  msg_start "Installing uv & creating virtualenv..."
+  export UV_INSTALL_DIR="/usr/bin"
+  $shh bash -c "$(curl -fsSL https://astral.sh/uv/install.sh)"
+  uv -q venv /opt/venv
+  msg_done "uv installed, venv created!"
+
+  msg_start "Installing Calibre..."
   $shh apt-get install -y calibre --no-install-recommends
+  msg_done "Calibre installed!"
+
+  msg_start "Installing Calibre-Web..."
+  mkdir -p /opt/calibre-web
   wget -q https://github.com/janeczku/calibre-web/raw/master/library/metadata.db -P /opt/calibre-web
-  $shh pip install calibreweb[goodreads,metadata,kobo]
-  pip show calibreweb | grep Version | cut -d' ' -f2 >/opt/calibre-web/calibreweb_version.txt
+  cd /opt/calibre-web
+  source /opt/venv/bin/activate
+  uv -q pip install calibreweb[goodreads,metadata,kobo]
+  uv -q pip list | grep calibreweb | awk '{print $2}' >/opt/calibre-web/calibreweb_version.txt
   msg_done "Installed Calibre-Web!"
 
   # Create calibre user
   useradd -U -s /usr/sbin/nologin -M -d /opt/calibre-web calibre
-  chown -R calibre:calibre /opt/calibre-web
+  chown -R calibre:calibre /opt/{venv,calibre-web}
 
   # Create service file
   cat <<EOF >/etc/systemd/system/cps.service
@@ -228,7 +237,7 @@ install() {
   User=calibre
   Group=calibre
   WorkingDirectory=/opt/calibre-web
-  ExecStart=/usr/local/bin/cps
+  ExecStart=/opt/venv/bin/cps
   TimeoutStopSec=20
   KillMode=process
   Restart=on-failure
@@ -249,7 +258,8 @@ EOF
   unzip -q cwa.zip
   mv Calibre-Web-Automated-"$RELEASE"/ /opt/cwa
   cd /opt/cwa
-  $shh pip install -r requirements.txt
+  uv -q pip install -r requirements.txt
+  deactivate
   msg_done "Calibre-Web Automated installed!"
 
   msg_start "Starting patching operations..."
@@ -261,7 +271,7 @@ EOF
   # patcher functions
   replacer
   script_generator
-  chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST",kepubify,calibre-web}
+  chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST",kepubify,calibre-web,venv}
   msg_done "Patching operations successful!"
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
@@ -275,7 +285,7 @@ EOF
   User=calibre
   Group=calibre
   WorkingDirectory=/opt/cwa
-  ExecStart=/usr/bin/python3 /opt/cwa/scripts/auto_library.py
+  ExecStart=/opt/venv/bin/python3 /opt/cwa/scripts/auto_library.py
   TimeoutStopSec=10
   KillMode=process
   Restart=on-failure
@@ -342,7 +352,7 @@ EOF
   User=calibre
   Group=calibre
   WorkingDirectory=/var/lib/cwa/processed_books
-  ExecStart=/usr/bin/python3 /opt/cwa/scripts/auto_zip.py
+  ExecStart=/opt/venv/bin/python3 /opt/cwa/scripts/auto_zip.py
   Restart=on-failure
 
   [Install]
@@ -429,8 +439,8 @@ replacer() {
     sed -i -e "/Linuxserver.io/,+3d" \
       -e "s/commit/calibreweb_version/" $APP/templates/admin.html
 
-  # patch the calibre-web python libs
-  cp -r /opt/cwa/root/app/calibre-web/cps/* /usr/local/lib/python3*/dist-packages/calibreweb/cps
+  # patch the calibre-web python libs in the virtualenv
+  cp -r /opt/cwa/root/app/calibre-web/cps/* /opt/venv/lib/python3*/site-packages/calibreweb/cps
 }
 
 script_generator() {
@@ -447,7 +457,7 @@ echo "[metadata-change-detector] Watching folder: \$WATCH_FOLDER"
 inotifywait -m -e close_write -e moved_to --exclude '^.*\.(swp)$' "\$WATCH_FOLDER" |
 while read -r directory events filename; do
         echo "[metadata-change-detector] New file detected: \$filename"
-        python3 /opt/cwa/scripts/cover_enforcer.py "--log" "\$filename"
+        /opt/venv/bin/python3 /opt/cwa/scripts/cover_enforcer.py "--log" "\$filename"
 done
 EOF
 
@@ -462,7 +472,7 @@ echo "[cwa-ingest-service] Watching folder: \$WATCH_FOLDER"
 inotifywait -m -r --format="%e %w%f" -e close_write -e moved_to "\$WATCH_FOLDER" |
 while read -r events filepath ; do
         echo "[cwa-ingest-service] New files detected - \$filepath - Starting Ingest Processor..."
-        python3 /opt/cwa/scripts/ingest_processor.py "\$filepath"
+        /opt/venv/bin/python3 /opt/cwa/scripts/ingest_processor.py "\$filepath"
 done
 EOF
 
