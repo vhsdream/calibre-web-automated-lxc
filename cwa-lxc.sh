@@ -114,6 +114,7 @@ msg_info() {
 # Exception and error handling
 msg_err() {
   if [[ -n "$BLING_PID" ]] && ps -p "$BLING_PID" >/dev/null; then kill "$BLING_PID" >/dev/null; fi
+  printf "\e[?25h"
   echo >&2 -e "${RED}${1-}${CLR}"
 }
 
