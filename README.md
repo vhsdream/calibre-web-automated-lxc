@@ -1,4 +1,4 @@
-# Calibre-Web Automated LXC
+# Calibre-Web Automated LXC with additional features support
 
 ## Many Thanks
 
@@ -57,6 +57,21 @@ It's pretty. But you can also use `-v` to tell it to spew out all the output to 
 ```bash
 bash cwa-lxc.sh [-h,--help][-v,--verbose][--no-color] install
 ```
+
+## What else can the script do for me ❓
+
+There is an another switch to extend functionality.
+
+For now there is an option to enable shares for the library and ingest folder via SSHFS.
+The main idea behind this is to keep data out of the LXC container to keep it tiny and low on resources.
+
+Use the ``feature`` option to get into the features menu.
+
+```bash
+bash cwa-lxc.sh [-h,--help][-v,--verbose][--no-color] features
+```
+
+ More features might be added in the future.
 
 ## It didn't work 😿
 
