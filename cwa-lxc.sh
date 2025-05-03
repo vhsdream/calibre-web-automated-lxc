@@ -178,10 +178,10 @@ CONVERSION=".cwa_conversion_tmp"
 # Main functions
 features() {
   header
-  echo -e "${YELLOW}Features${CLR}"
-  echo "-----------------------------"
-  echo "1) Enable SSHFS support"
-  echo "q) Quit"
+  msg_info "Features"
+  msg_info "-----------------------------"
+  msg_info "1) Enable SSHFS support"
+  msg_info "q) Quit"
   echo
 
   read -rp "Choose a feature to install [1/q]: " choice
@@ -190,11 +190,11 @@ features() {
       enable_sshfs
       ;;
     q | Q)
-      echo "Quitting."
+      msg_info "Quitting."
       exit 0
       ;;
     *)
-      echo "Invalid option"
+      msg_error "Invalid option"
       sleep 1
       features
       ;;
