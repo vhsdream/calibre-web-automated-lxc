@@ -311,21 +311,26 @@ enable_sshfs() {
     copy_ssh_key=$(get_input "Do you want to copy the SSH public key to the remote host? (y/n): " "y")
     if [[ "$copy_ssh_key" == "y" || "$copy_ssh_key" == "Y" ]]; then
         msg_info "Checking if the SSH public key is already on the remote server..."
-        if ssh -i "${CONFIG[SSH_KEY_PATH]}" "$CONFIG[REMOTE_USER]@$CONFIG[REMOTE_HOST]" "grep -q '$(cat ${CONFIG[SSH_KEY_PATH]}.pub)' ~/.ssh/authorized_keys"; then
+
+        # Lokale Variablen aus dem CONFIG-Array extrahieren
+        ssh_key="${CONFIG[SSH_KEY_PATH]}"
+        remote_user="${CONFIG[REMOTE_USER]}"
+        remote_host="${CONFIG[REMOTE_HOST]}"
+        pubkey=$(< "${ssh_key}.pub")
+
+        if ssh -i "$ssh_key" "$remote_user@$remote_host" "grep -q '$pubkey' ~/.ssh/authorized_keys"; then
             msg_info "The SSH public key is already in the 'authorized_keys' file on the remote server."
             replace_key=$(get_input "Do you want to replace the existing key? (y/n): " "y")
             if [[ "$replace_key" == "y" || "$replace_key" == "Y" ]]; then
-                # Remove the existing key and add the new one
                 msg_info "Removing the old key and adding the new one..."
-                ssh -i "${CONFIG[SSH_KEY_PATH]}" "$CONFIG[REMOTE_USER]@$CONFIG[REMOTE_HOST]" "sed -i '/$(cat ${CONFIG[SSH_KEY_PATH]}.pub)/d' ~/.ssh/authorized_keys"
-                ssh-copy-id -i "${CONFIG[SSH_KEY_PATH]}.pub" "$CONFIG[REMOTE_USER]@$CONFIG[REMOTE_HOST]"
+                ssh -i "$ssh_key" "$remote_user@$remote_host" "sed -i '/$pubkey/d' ~/.ssh/authorized_keys"
+                ssh-copy-id -i "${ssh_key}.pub" "$remote_user@$remote_host"
             else
                 msg_info "Keeping the existing key. Skipping key replacement."
             fi
         else
-            # If the key doesn't exist, copy it
             msg_info "The SSH public key is not present on the remote server. Copying the key..."
-            ssh-copy-id -i "${CONFIG[SSH_KEY_PATH]}.pub" "$CONFIG[REMOTE_USER]@$CONFIG[REMOTE_HOST]"
+            ssh-copy-id -i "${ssh_key}.pub" "$remote_user@$remote_host"
         fi
     else
         msg_info "Skipping copying the SSH public key."
