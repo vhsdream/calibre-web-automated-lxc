@@ -213,7 +213,7 @@ features() {
 }
 
 # Function to enable SSHFS support
-enable_ssh_fs() {
+enable_sshfs() {
 
     # Default Configuration for sshfs-feature (suggested values)
     declare -A CONFIG
@@ -244,8 +244,8 @@ enable_ssh_fs() {
     fi
 
     # 1. Prompt the user to confirm if FUSE is enabled
-    read -p "Is FUSE enabled in this container? (y/n): " fuse_enabled
-
+    fuse_enabled=$(get_input "Is FUSE enabled in this container? (y/n)" "y")
+    
     if [[ "$fuse_enabled" != "y" && "$fuse_enabled" != "Y" ]]; then
         msg_error "Please ensure that FUSE is enabled in the container and try again."
         msg_info "You can enable FUSE in the Proxmox LXC container options (features: fuse)."
