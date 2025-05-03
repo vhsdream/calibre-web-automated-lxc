@@ -172,13 +172,11 @@ get_input() {
     local prompt="$1"
     local default="$2"
     local user_input
-    printf "\n\n"
     read -p "$prompt (default: $default): " user_input
 
     if [[ -z "$user_input" ]]; then
         user_input="$default"
     fi
-
     echo "$user_input"
 }
 
