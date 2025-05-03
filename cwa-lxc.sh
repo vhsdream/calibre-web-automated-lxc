@@ -212,9 +212,9 @@ enable_sshfs() {
 
     # Default Configuration for sshfs-feature (suggested values)
     declare -A CONFIG=(
-        [REMOTE_USER]="someUser"
-        [REMOTE_HOST]="someIP"
-        [REMOTE_PATH]="someRemotePath"
+        [REMOTE_USER]="someUsername"
+        [REMOTE_HOST]="192.168.1.1"
+        [REMOTE_PATH]="/some/path"
         [LOCAL_MOUNT]="/mnt/cwa_share"
         [SSH_KEY_PATH]="/root/.ssh/id_rsa_cwa_share"
     )
