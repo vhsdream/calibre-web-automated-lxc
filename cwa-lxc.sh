@@ -348,30 +348,36 @@ enable_sshfs() {
     fi
 
 
-    # 7. Check if SSHFS entry already exists in /etc/fstab
-    msg_info "Checking if the SSHFS entry already exists in /etc/fstab..."
-    
-    # Search for existing entry in fstab
-    if grep -q "sshfs#${CONFIG[REMOTE_USER]}@${CONFIG[REMOTE_HOST]}:${CONFIG[REMOTE_PATH]} ${CONFIG[LOCAL_MOUNT]} fuse" /etc/fstab; then
-        msg_info "SSHFS entry already exists in /etc/fstab. Skipping entry creation."
-    else
-        msg_info "Adding SSHFS entry to /etc/fstab..."
-        
-        # Backup current fstab before modifying
-        cp /etc/fstab /etc/fstab.bak
-        
-        # Create the SSHFS mount entry
-        echo "sshfs#${CONFIG[REMOTE_USER]}@${CONFIG[REMOTE_HOST]}:${CONFIG[REMOTE_PATH]} ${CONFIG[LOCAL_MOUNT]} fuse defaults,_netdev,allow_other,IdentityFile=${CONFIG[SSH_KEY_PATH]} 0 0" >> /etc/fstab
-        
-        # Reload systemd to recognize fstab changes
-        systemctl daemon-reload
-        
-        # Mount the filesystem
-        msg_info "Mounting the filesystem..."
-        mount -a
-    fi
-    
+    # 7. Ask if the SSHFS entry should be added to /etc/fstab
+    set_fstab=$(get_input "Do you want to add an SSHFS entry to /etc/fstab for persistent mounting? (y/n): " "y")
+    if [[ "$set_fstab" == "y" || "$set_fstab" == "Y" ]]; then
+        msg_info "Checking if the SSHFS entry already exists in /etc/fstab..."
 
+        # Lokale Variablen aus CONFIG
+        remote_user="${CONFIG[REMOTE_USER]}"
+        remote_host="${CONFIG[REMOTE_HOST]}"
+        remote_path="${CONFIG[REMOTE_PATH]}"
+        local_mount="${CONFIG[LOCAL_MOUNT]}"
+        ssh_key="${CONFIG[SSH_KEY_PATH]}"
+
+        if grep -q "sshfs#${remote_user}@${remote_host}:${remote_path} ${local_mount} fuse" /etc/fstab; then
+            msg_info "SSHFS entry already exists in /etc/fstab. Skipping entry creation."
+        else
+            msg_info "Adding SSHFS entry to /etc/fstab..."
+            cp /etc/fstab /etc/fstab.bak
+
+            echo "sshfs#${remote_user}@${remote_host}:${remote_path} ${local_mount} fuse defaults,_netdev,allow_other,IdentityFile=${ssh_key} 0 0" >> /etc/fstab
+            
+            systemctl daemon-reload
+
+            msg_info "Mounting the filesystem..."
+            mount -a
+        fi
+    else
+        msg_info "Skipping SSHFS fstab entry creation."
+    fi
+
+  
     # 8. Check if the mount is successful
     check_mount=$(get_input "Do you want to check if the mount was successful? (y/n): " "y")
     if [[ "$check_mount" == "y" || "$check_mount" == "Y" ]]; then
