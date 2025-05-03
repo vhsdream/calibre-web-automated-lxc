@@ -319,6 +319,42 @@ enable_ssh_fs() {
         msg_info "Skipping local mount folder creation."
     fi
 
+    # 6. Check if SSHFS entry already exists in /etc/fstab
+    msg_info "Checking if the SSHFS entry already exists in /etc/fstab..."
+    
+    # Search for existing entry in fstab
+    if grep -q "sshfs#$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH $LOCAL_MOUNT fuse" /etc/fstab; then
+        msg_info "SSHFS entry already exists in /etc/fstab. Skipping entry creation."
+    else
+        msg_info "Adding SSHFS entry to /etc/fstab..."
+    
+        # Backup current fstab before modifying
+        cp /etc/fstab /etc/fstab.bak
+    
+        # Create the SSHFS mount entry
+        echo "sshfs#$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH $LOCAL_MOUNT fuse defaults,_netdev,allow_other,IdentityFile=$SSH_KEY_PATH 0 0" >> /etc/fstab
+    
+        # Reload systemd to recognize fstab changes
+        systemctl daemon-reload
+    
+        # Mount the filesystem
+        msg_info "Mounting the filesystem..."
+        mount -a
+    fi
+
+    # 7. Check if the mount is successful
+    read -p "Do you want to check if the mount was successful? (y/n): " check_mount
+    if [[ "$check_mount" == "y" || "$check_mount" == "Y" ]]; then
+        msg_info "Checking if the mount was successful..."
+        if mountpoint -q "$LOCAL_MOUNT"; then
+            msg_info "Successfully mounted: $LOCAL_MOUNT"
+        else
+            msg_error "Failed to mount the remote system."
+        fi
+    else
+        msg_info "Skipping mount check."
+    fi
+
 }
 
 
