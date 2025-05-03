@@ -308,6 +308,17 @@ enable_ssh_fs() {
     else
         msg_info "Skipping copying the SSH public key."
     fi
+
+    # 5. Create the mount folder if it doesn't already exist
+    read -p "Do you want to create the local mount folder '$LOCAL_MOUNT'? (y/n): " create_mount
+    if [[ "$create_mount" == "y" || "$create_mount" == "Y" ]]; then
+        msg_info "Creating the local mount point if it doesn't exist..."
+        mkdir -p "$LOCAL_MOUNT"
+        chmod 755 "$LOCAL_MOUNT"
+    else
+        msg_info "Skipping local mount folder creation."
+    fi
+
 }
 
 
