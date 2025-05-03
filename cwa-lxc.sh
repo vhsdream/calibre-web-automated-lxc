@@ -15,6 +15,7 @@ usage() {
   cat <<EOF
 Functions:
 'install'   Installs Calibre-Web Automated on a Debian 12 LXC in Proxmox.
+'features'  Opens a features menu to add additional features.
 'update'    Checks for updates to Calibre-Web Automated upstream and applies them to an existing installation.
 
 Available options:
@@ -168,6 +169,14 @@ INGEST="cwa-book-ingest"
 CONVERSION=".cwa_conversion_tmp"
 
 # Main functions
+features() {
+  header
+  echo -e "${YELLOW}Features${CLR}"
+  echo "-----------------------------"
+  echo "(Not implemented yet.)"
+  echo
+}
+
 install() {
   header
   sleep 2 && msg_start "Updating system..."
@@ -536,6 +545,9 @@ install)
 update)
   update
   ;;
+features) 
+  features 
+  ;;  
 *)
   die "Unknown command. Choose 'install' or 'update'."
   ;;
