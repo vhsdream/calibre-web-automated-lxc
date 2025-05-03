@@ -209,6 +209,18 @@ enable_ssh_fs() {
         msg_error "This script must be run as root!"
         exit 1
     fi
+    
+    # Check if the system is Debian-based
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        if [[ "$ID" != "debian" ]]; then
+            msg_error "This script is designed to run on Debian-based systems only. Detected OS: $NAME"
+            exit 1
+        fi
+    else
+        msg_error "Cannot detect operating system. /etc/os-release not found."
+        exit 1
+    fi
 
     # 1. Prompt the user to confirm if FUSE is enabled
     read -p "Is FUSE enabled in this container? (y/n): " fuse_enabled
