@@ -210,7 +210,7 @@ enable_ssh_fs() {
         exit 1
     fi
 
-    # Prompt the user to confirm if FUSE is enabled
+    # 1. Prompt the user to confirm if FUSE is enabled
     read -p "Is FUSE enabled in this container? (y/n): " fuse_enabled
 
     if [[ "$fuse_enabled" != "y" && "$fuse_enabled" != "Y" ]]; then
@@ -221,7 +221,7 @@ enable_ssh_fs() {
         msg_info "FUSE is enabled. Proceeding with setup..."
     fi
 
-    # Ask if the user wants to adjust the configuration values
+    # 2. Ask if the user wants to adjust the configuration values
     read -p "Do you want to adjust the default configuration values? (y/n): " adjust_config
     if [[ "$adjust_config" == "y" || "$adjust_config" == "Y" ]]; then
         msg_info "You will be prompted to adjust the following configuration parameters."
@@ -255,6 +255,34 @@ enable_ssh_fs() {
     if [[ "$proceed" != "y" && "$proceed" != "Y" ]]; then
         msg_info "Exiting the script. No changes were made."
         exit 1
+    fi
+
+    # 3. Install SSHFS if it's not already installed
+    read -p "Do you want to check and install SSHFS if necessary? (y/n): " install_sshfs
+    if [[ "$install_sshfs" == "y" || "$install_sshfs" == "Y" ]]; then
+        msg_info "Checking if SSHFS is installed..."
+        if ! command -v sshfs &> /dev/null; then
+            msg_info "Installing SSHFS..."
+            apt update && apt install -y sshfs
+        else
+            msg_info "SSHFS is already installed."
+        fi
+    else
+        msg_info "Skipping SSHFS installation."
+    fi
+
+    # 4. Generate SSH key if it doesn't exist
+    read -p "Do you want to generate an SSH key (if it doesn't already exist)? (y/n): " generate_ssh_key
+    if [[ "$generate_ssh_key" == "y" || "$generate_ssh_key" == "Y" ]]; then
+        msg_info "Checking if the SSH key exists..."
+        if [[ ! -f "$SSH_KEY_PATH" ]]; then
+            msg_info "Creating SSH key..."
+            ssh-keygen -t rsa -b 4096 -f "$SSH_KEY_PATH" -N ""
+        else
+            msg_info "SSH key already exists."
+        fi
+    else
+        msg_info "Skipping SSH key generation."
     fi
 }
 
