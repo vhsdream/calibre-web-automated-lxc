@@ -355,6 +355,84 @@ enable_ssh_fs() {
         msg_info "Skipping mount check."
     fi
 
+    # 8. Ask if the metadata.db file should be copied to the library directory on the mounted share
+    read -p "Do you want to copy '/opt/calibre-web/metadata.db' to the '/library' folder of the mounted share and create an initial directory structure on the share? (y/n): " copy_metadata
+    if [[ "$copy_metadata" == "y" || "$copy_metadata" == "Y" ]]; then
+        msg_info "Creating the required folder structure on the mounted share..."
+    
+        # Create the /library and /ingest directories if they don't exist
+        ssh -i "$SSH_KEY_PATH" "$REMOTE_USER@$REMOTE_HOST" "mkdir -p $REMOTE_PATH/library $REMOTE_PATH/ingest"
+        
+        # Copy the metadata.db file to the /library directory on the remote share
+        msg_info "Copying the metadata.db file to '$LOCAL_MOUNT/library'..."
+        cp /opt/calibre-web/metadata.db "$LOCAL_MOUNT/library/"
+        msg_info "File copied successfully."
+    
+        # Create the symlink for /opt/cwa-book-ingest pointing to the /ingest folder in the share
+        msg_info "Creating symlink '/opt/cwa-book-ingest' to the '/ingest' folder in the mounted share..."
+        ln -sf "$LOCAL_MOUNT/ingest" /opt/cwa-book-ingest
+        msg_info "Symlink created successfully."
+    
+        # Inform the user about the Calibre-Web configuration
+        msg_warn "Important Note: You need to set the database path in the Calibre-Web Automated GUI to '$LOCAL_MOUNT/library/metadata.db'."
+        
+        # Inform the user that the ingest folder is now available in the share
+        msg_warn "The '/ingest' folder is now available on the remote share under '$REMOTE_PATH/ingest'. You can now use this folder to add files directly via SSH/SFTP."
+    
+    else
+        msg_info "Skipping the copy of the metadata.db file."
+    fi
+
+    # 9. Patching the Calibre-Web Systemd Service and the auto_library.py file
+    read -p "Do you want to patch the Calibre-Web systemd service and '/opt/cwa/scripts/auto_library.py' to update the path to the share? (y/n): " patch_service
+    if [[ "$patch_service" == "y" || "$patch_service" == "Y" ]]; then
+        msg_info "Patching the Calibre-Web systemd service and '/opt/cwa/scripts/auto_library.py' to use the correct paths..."
+    
+        # Path to the systemd service file
+        SERVICE_FILE="/etc/systemd/system/cps.service"
+        
+        # Path to the Python script
+        PYTHON_FILE="/opt/cwa/scripts/auto_library.py"
+    
+        # Ensure the service file exists before modifying
+        if [[ -f "$SERVICE_FILE" ]]; then
+            # Backup the original service file
+            cp "$SERVICE_FILE" "$SERVICE_FILE.bak"
+    
+            # Update the WorkingDirectory and ExecStart paths in the systemd service to use the correct location
+            msg_info "Updating the systemd service to use the new path..."
+            sed -i "s|/opt/calibre-web|$LOCAL_MOUNT/library|g" "$SERVICE_FILE"
+    
+            # Reload systemd to apply the changes
+            systemctl daemon-reload
+    
+            # Restart the service to apply the new configuration
+            systemctl restart cps.service
+    
+            msg_info "The systemd service has been updated and restarted successfully."
+        else
+            msg_error "Error: The systemd service file '$SERVICE_FILE' does not exist."
+        fi
+    
+        # Ensure the Python file exists before modifying
+        if [[ -f "$PYTHON_FILE" ]]; then
+            # Backup the original Python file
+            cp "$PYTHON_FILE" "$PYTHON_FILE.bak"
+    
+            # Update the library_dir path in the Python script
+            msg_info "Updating '/opt/cwa/scripts/auto_library.py' to use the new path..."
+            sed -i "s|/opt/calibre-web|$LOCAL_MOUNT/library|g" "$PYTHON_FILE"
+    
+            msg_info "'/opt/cwa/scripts/auto_library.py' has been updated successfully."
+        else
+            msg_error "Error: The Python file '$PYTHON_FILE' does not exist."
+        fi
+    
+    else
+        msg_info "Skipping the patching of the systemd service and '/opt/cwa/scripts/auto_library.py'."
+    fi
+
+
 }
 
 
