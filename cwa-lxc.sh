@@ -10,6 +10,13 @@ trap 'catch $LINENO "$BASH_COMMAND"' SIGINT SIGTERM ERR
 verbose=0
 BLING_PID=""
 
+# Default Configuration for sshfs-feature (suggested values)
+DEFAULT_REMOTE_USER="someUser"                     # Remote user on the remote host
+DEFAULT_REMOTE_HOST="someIP"                       # IP or hostname of the remote server
+DEFAULT_REMOTE_PATH="someRemotePath"               # Path to the remote folder
+DEFAULT_LOCAL_MOUNT="/mnt/cwa_share"
+DEFAULT_SSH_KEY_PATH="/root/.ssh/id_rsa_cwa_share" # Path to the private SSH key (custom name)
+
 usage() {
   header
   cat <<EOF
@@ -193,6 +200,64 @@ features() {
       ;;
   esac
 }
+
+# Function to enable SSHFS support
+enable_ssh_fs() {
+    # Check if the script is being run as root
+    if [[ $EUID -ne 0 ]]; then
+        msg_error "This script must be run as root!"
+        exit 1
+    fi
+
+    # Prompt the user to confirm if FUSE is enabled
+    read -p "Is FUSE enabled in this container? (y/n): " fuse_enabled
+
+    if [[ "$fuse_enabled" != "y" && "$fuse_enabled" != "Y" ]]; then
+        msg_error "Please ensure that FUSE is enabled in the container and try again."
+        msg_info "You can enable FUSE in the Proxmox LXC container options (features: fuse)."
+        exit 1
+    else
+        msg_info "FUSE is enabled. Proceeding with setup..."
+    fi
+
+    # Ask if the user wants to adjust the configuration values
+    read -p "Do you want to adjust the default configuration values? (y/n): " adjust_config
+    if [[ "$adjust_config" == "y" || "$adjust_config" == "Y" ]]; then
+        msg_info "You will be prompted to adjust the following configuration parameters."
+        
+        # Get user input for each configuration variable
+        REMOTE_USER=$(get_input "Enter the remote user" "$DEFAULT_REMOTE_USER")
+        REMOTE_HOST=$(get_input "Enter the remote host (IP or hostname)" "$DEFAULT_REMOTE_HOST")
+        REMOTE_PATH=$(get_input "Enter the path to the remote folder" "$DEFAULT_REMOTE_PATH")
+        LOCAL_MOUNT=$(get_input "Enter the local mount point" "$DEFAULT_LOCAL_MOUNT")
+        SSH_KEY_PATH=$(get_input "Enter the path to the SSH private key" "$DEFAULT_SSH_KEY_PATH")
+    else
+        # Use default values if the user doesn't want to adjust them
+        REMOTE_USER="$DEFAULT_REMOTE_USER"
+        REMOTE_HOST="$DEFAULT_REMOTE_HOST"
+        REMOTE_PATH="$DEFAULT_REMOTE_PATH"
+        LOCAL_MOUNT="$DEFAULT_LOCAL_MOUNT"
+        SSH_KEY_PATH="$DEFAULT_SSH_KEY_PATH"
+        msg_info "Using default configuration values."
+    fi
+
+    # Confirm the selected configuration
+    msg_info "\nThe following configuration will be used:"
+    msg_info "Remote User: $REMOTE_USER"
+    msg_info "Remote Host: $REMOTE_HOST"
+    msg_info "Remote Path: $REMOTE_PATH"
+    msg_info "Local Mount: $LOCAL_MOUNT"
+    msg_info "SSH Key Path: $SSH_KEY_PATH"
+
+    # Ask for confirmation before proceeding
+    read -p "Do you want to proceed with this configuration? (y/n): " proceed
+    if [[ "$proceed" != "y" && "$proceed" != "Y" ]]; then
+        msg_info "Exiting the script. No changes were made."
+        exit 1
+    fi
+}
+
+
 
 install() {
   header
