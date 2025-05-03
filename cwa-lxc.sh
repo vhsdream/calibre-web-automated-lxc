@@ -25,7 +25,7 @@ Available options:
 
 This script is similar to those found in the Proxmox Helper Scripts repo, with the main difference being that you need to run this in a Proxmox LXC you have created yourself.
 
-Usage: bash $(basename "${BASH_SOURCE[0]}") [-h] [-v] [--no-color] [install|update]
+Usage: bash $(basename "${BASH_SOURCE[0]}") [-h] [-v] [--no-color] [install|update|features]
 
 EOF
   exit
