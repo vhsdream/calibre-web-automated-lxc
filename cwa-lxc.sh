@@ -461,13 +461,13 @@ enable_sshfs() {
             msg_info "Updating '${CONFIG[LOCAL_MOUNT]}/scripts/auto_library.py' to use the new path..."
             sed -i "s|/opt/calibre-web|${CONFIG[LOCAL_MOUNT]}/library|g" "$PYTHON_FILE"
         
-            msg_info "'${CONFIG[LOCAL_MOUNT]}/scripts/auto_library.py' has been updated successfully."
+            msg_info "'/opt/cwa/scripts/auto_library.py' has been updated successfully."
         else
             msg_err "Error: The Python file '$PYTHON_FILE' does not exist."
         fi
     
     else
-        msg_info "Skipping the patching of the systemd service and '${CONFIG[LOCAL_MOUNT]}/scripts/auto_library.py'."
+        msg_info "Skipping the patching of the systemd service and '/opt/cwa/scripts/auto_library.py'."
     fi
     
     
