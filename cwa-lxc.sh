@@ -214,8 +214,7 @@ features() {
 enable_sshfs() {
 
     # Default Configuration for sshfs-feature (suggested values)
-    declare -A CONFIG
-    CONFIG=(
+    declare -A CONFIG=(
         [REMOTE_USER]="someUser"
         [REMOTE_HOST]="someIP"
         [REMOTE_PATH]="someRemotePath"
