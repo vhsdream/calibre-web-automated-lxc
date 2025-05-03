@@ -284,6 +284,30 @@ enable_ssh_fs() {
     else
         msg_info "Skipping SSH key generation."
     fi
+
+    # 5. Copy the public SSH key to the remote server (optional)
+    read -p "Do you want to copy the SSH public key to the remote host? (y/n): " copy_ssh_key
+    if [[ "$copy_ssh_key" == "y" || "$copy_ssh_key" == "Y" ]]; then
+        msg_info "Checking if the SSH public key is already on the remote server..."
+        if ssh -i "$SSH_KEY_PATH" "$REMOTE_USER@$REMOTE_HOST" "grep -q '$(cat $SSH_KEY_PATH.pub)' ~/.ssh/authorized_keys"; then
+            msg_info "The SSH public key is already in the 'authorized_keys' file on the remote server."
+            read -p "Do you want to replace the existing key? (y/n): " replace_key
+            if [[ "$replace_key" == "y" || "$replace_key" == "Y" ]]; then
+                # Remove the existing key and add the new one
+                msg_info "Removing the old key and adding the new one..."
+                ssh -i "$SSH_KEY_PATH" "$REMOTE_USER@$REMOTE_HOST" "sed -i '/$(cat $SSH_KEY_PATH.pub)/d' ~/.ssh/authorized_keys"
+                ssh-copy-id -i "$SSH_KEY_PATH.pub" "$REMOTE_USER@$REMOTE_HOST"
+            else
+                msg_info "Keeping the existing key. Skipping key replacement."
+            fi
+        else
+            # If the key doesn't exist, copy it
+            msg_info "The SSH public key is not present on the remote server. Copying the key..."
+            ssh-copy-id -i "$SSH_KEY_PATH.pub" "$REMOTE_USER@$REMOTE_HOST"
+        fi
+    else
+        msg_info "Skipping copying the SSH public key."
+    fi
 }
 
 
