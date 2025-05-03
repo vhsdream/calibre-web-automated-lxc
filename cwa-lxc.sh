@@ -172,7 +172,7 @@ get_input() {
     local prompt="$1"
     local default="$2"
     local user_input
-
+    printf "\n\n"
     read -p "$prompt (default: $default): " user_input
 
     if [[ -z "$user_input" ]]; then
@@ -186,6 +186,7 @@ get_input() {
 # Main functions
 features() {
   header
+  printf "\n\n"
   msg_info "Features"
   msg_info "-----------------------------"
   msg_info "1) Enable SSHFS support"
