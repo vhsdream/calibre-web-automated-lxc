@@ -431,8 +431,12 @@ enable_ssh_fs() {
     else
         msg_info "Skipping the patching of the systemd service and '/opt/cwa/scripts/auto_library.py'."
     fi
+    
+    # feature for next release?
+    # calibredb restore_database --really-do-it --with-library /mnt/cwa_share/library/metadata.db --with-library /mnt/cwa_share/library
 
-
+    # Completion message
+    msg_info "Feature added!"
 }
 
 
