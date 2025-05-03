@@ -10,13 +10,6 @@ trap 'catch $LINENO "$BASH_COMMAND"' SIGINT SIGTERM ERR
 verbose=0
 BLING_PID=""
 
-# Default Configuration for sshfs-feature (suggested values)
-DEFAULT_REMOTE_USER="someUser"                     # Remote user on the remote host
-DEFAULT_REMOTE_HOST="someIP"                       # IP or hostname of the remote server
-DEFAULT_REMOTE_PATH="someRemotePath"               # Path to the remote folder
-DEFAULT_LOCAL_MOUNT="/mnt/cwa_share"
-DEFAULT_SSH_KEY_PATH="/root/.ssh/id_rsa_cwa_share" # Path to the private SSH key (custom name)
-
 usage() {
   header
   cat <<EOF
@@ -203,6 +196,14 @@ features() {
 
 # Function to enable SSHFS support
 enable_ssh_fs() {
+
+    # Default Configuration for sshfs-feature (suggested values)
+    DEFAULT_REMOTE_USER="someUser"                     # Remote user on the remote host
+    DEFAULT_REMOTE_HOST="someIP"                       # IP or hostname of the remote server
+    DEFAULT_REMOTE_PATH="someRemotePath"               # Path to the remote folder
+    DEFAULT_LOCAL_MOUNT="/mnt/cwa_share"
+    DEFAULT_SSH_KEY_PATH="/root/.ssh/id_rsa_cwa_share" # Path to the private SSH key (custom name)
+    
     # Check if the script is being run as root
     if [[ $EUID -ne 0 ]]; then
         msg_error "This script must be run as root!"
