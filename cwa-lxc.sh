@@ -173,7 +173,6 @@ get_input() {
     local default="$2"
     local user_input
     read -p "$prompt (default: $default): " user_input
-
     if [[ -z "$user_input" ]]; then
         user_input="$default"
     fi
