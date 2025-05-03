@@ -168,6 +168,24 @@ META_LOGS="$CONFIG/metadata_change_logs"
 INGEST="cwa-book-ingest"
 CONVERSION=".cwa_conversion_tmp"
 
+get_input() {
+    local prompt="$1"
+    local default="$2"
+    local user_input
+
+    # Gebe den Prompt mit msg_info aus, um den Benutzer zu informieren
+    msg_info "$prompt (default: $default)"
+
+    read user_input
+
+    # Falls der Benutzer keine Eingabe macht, den Standardwert verwenden
+    if [[ -z "$user_input" ]]; then
+        user_input="$default"
+    fi
+
+    echo "$user_input"  # Gib die Benutzereingabe oder den Standardwert zurück
+}
+
 # Main functions
 features() {
   header
