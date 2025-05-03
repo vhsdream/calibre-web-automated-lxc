@@ -168,6 +168,15 @@ META_LOGS="$CONFIG/metadata_change_logs"
 INGEST="cwa-book-ingest"
 CONVERSION=".cwa_conversion_tmp"
 
+# Default Configuration for sshfs-feature (suggested values)
+declare -g -A CONFIG=(
+    [REMOTE_USER]="someUsername"
+    [REMOTE_HOST]="192.168.1.1"
+    [REMOTE_PATH]="/some/path"
+    [LOCAL_MOUNT]="/mnt/cwa_share"
+    [SSH_KEY_PATH]="/root/.ssh/id_rsa_cwa_share"
+)
+
 get_input() {
     local prompt="$1"
     local default="$2"
@@ -209,15 +218,6 @@ features() {
 
 # Function to enable SSHFS support
 enable_sshfs() {
-
-    # Default Configuration for sshfs-feature (suggested values)
-    declare -g -A CONFIG=(
-        [REMOTE_USER]="someUsername"
-        [REMOTE_HOST]="192.168.1.1"
-        [REMOTE_PATH]="/some/path"
-        [LOCAL_MOUNT]="/mnt/cwa_share"
-        [SSH_KEY_PATH]="/root/.ssh/id_rsa_cwa_share"
-    )
     
     # Check if the script is being run as root
     if [[ $EUID -ne 0 ]]; then
