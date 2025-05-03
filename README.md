@@ -1,4 +1,4 @@
-# Calibre-Web Automated LXC with additional features support
+# Calibre-Web Automated LXC (with additional features support)
 
 ## Many Thanks
 
