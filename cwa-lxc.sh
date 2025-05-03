@@ -202,7 +202,7 @@ features() {
       exit 0
       ;;
     *)
-      msg_error "Invalid option"
+      msg_err "Invalid option"
       sleep 1
       features
       ;;
