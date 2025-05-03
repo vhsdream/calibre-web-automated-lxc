@@ -48,7 +48,8 @@ It's pretty. But you can also use `-v` to tell it to spew out all the output to 
 
 ## How do I use it ❓
 
-1. Start with a freshly-baked Debian 12 LXC in Proxmox (a bare-metal Debian 12 might work as well, have not tested).
+1. Start with a freshly-baked Debian 12 LXC in Proxmox (a bare-metal Debian 12 might work as well, have not tested). [See above](#how-to-prepare-a-debian-12-lxc-container-) how to do this.
+
    - Support for other LXCs may be added in the future
 2. Get the latest version of the script - grab from [Releases](https://github.com/vhsdream/calibre-web-automated-lxc/releases/latest) or clone the repo.
 3. Run the script as root.
