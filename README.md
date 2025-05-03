@@ -30,7 +30,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/Proxmo
 ```
 Please note the script does not support updating the container. You have to take care of this yourself and configure unattended updates for example.
 
-** Log into your Proxmox PVE webpage and launch this command inside your Proxmox PVE host system shell to create a new container. **
+**Log into your Proxmox PVE webpage and launch this command inside your Proxmox PVE host system shell to create a new container.**
 
 2. The minimum required specs for the container are:
 
