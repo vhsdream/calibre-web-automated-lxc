@@ -173,8 +173,25 @@ features() {
   header
   echo -e "${YELLOW}Features${CLR}"
   echo "-----------------------------"
-  echo "(Not implemented yet.)"
+  echo "1) Enable SSHFS support"
+  echo "q) Quit"
   echo
+
+  read -rp "Choose a feature to install [1/q]: " choice
+  case "$choice" in
+    1)
+      enable_sshfs
+      ;;
+    q | Q)
+      echo "Quitting."
+      exit 0
+      ;;
+    *)
+      echo "Invalid option"
+      sleep 1
+      features
+      ;;
+  esac
 }
 
 install() {
