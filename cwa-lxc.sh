@@ -224,7 +224,7 @@ enable_sshfs() {
     
     # Check if the script is being run as root
     if [[ $EUID -ne 0 ]]; then
-        msg_error "This script must be run as root!"
+        msg_err "This script must be run as root!"
         exit 1
     fi
     
@@ -232,11 +232,11 @@ enable_sshfs() {
     if [[ -f /etc/os-release ]]; then
         . /etc/os-release
         if [[ "$ID" != "debian" ]]; then
-            msg_error "This script is designed to run on Debian-based systems only. Detected OS: $NAME"
+            msg_err "This script is designed to run on Debian-based systems only. Detected OS: $NAME"
             exit 1
         fi
     else
-        msg_error "Cannot detect operating system. /etc/os-release not found."
+        msg_err "Cannot detect operating system. /etc/os-release not found."
         exit 1
     fi
     
@@ -245,7 +245,7 @@ enable_sshfs() {
     fuse_enabled=$(get_input "Is FUSE enabled in this container? (y/n)" "y")
     
     if [[ "$fuse_enabled" != "y" && "$fuse_enabled" != "Y" ]]; then
-        msg_error "Please ensure that FUSE is enabled in the container and try again."
+        msg_err "Please ensure that FUSE is enabled in the container and try again."
         msg_info "You can enable FUSE in the Proxmox LXC container options (features: fuse)."
         exit 1
     else
@@ -377,7 +377,7 @@ enable_sshfs() {
         if mountpoint -q "${CONFIG[LOCAL_MOUNT]}"; then
             msg_info "Successfully mounted: ${CONFIG[LOCAL_MOUNT]}"
         else
-            msg_error "Failed to mount the remote system."
+            msg_err "Failed to mount the remote system."
         fi
     else
         msg_info "Skipping mount check."
@@ -441,7 +441,7 @@ enable_sshfs() {
         
             msg_info "The systemd service has been updated and restarted successfully."
         else
-            msg_error "Error: The systemd service file '$SERVICE_FILE' does not exist."
+            msg_err "Error: The systemd service file '$SERVICE_FILE' does not exist."
         fi
         
         # Ensure the Python file exists before modifying
@@ -455,7 +455,7 @@ enable_sshfs() {
         
             msg_info "'${CONFIG[LOCAL_MOUNT]}/scripts/auto_library.py' has been updated successfully."
         else
-            msg_error "Error: The Python file '$PYTHON_FILE' does not exist."
+            msg_err "Error: The Python file '$PYTHON_FILE' does not exist."
         fi
     
     else
