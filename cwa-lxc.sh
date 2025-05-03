@@ -242,6 +242,7 @@ enable_sshfs() {
         msg_error "Cannot detect operating system. /etc/os-release not found."
         exit 1
     fi
+    
 
     # 1. Prompt the user to confirm if FUSE is enabled
     fuse_enabled=$(get_input "Is FUSE enabled in this container? (y/n)" "y")
@@ -254,11 +255,12 @@ enable_sshfs() {
         msg_info "FUSE is enabled. Proceeding with setup..."
     fi
 
+
     # 2. Ask if the user wants to adjust the configuration values
-    read -p "Do you want to adjust the default configuration values? (y/n): " adjust_config
+    adjust_config=$(get_input "Do you want to adjust the default configuration values? (y/n): " "y")
     if [[ "$adjust_config" == "y" || "$adjust_config" == "Y" ]]; then
         msg_info "You will be prompted to adjust the following configuration parameters."
-
+    
         # Loop through the config array and get user input for each parameter
         for key in "${!CONFIG[@]}"; do
             CONFIG[$key]=$(get_input "Enter the value for $key" "${CONFIG[$key]}")
@@ -266,15 +268,15 @@ enable_sshfs() {
     else
         msg_info "Using default configuration values."
     fi
-
+    
     # Confirm the selected configuration
     msg_info "\nThe following configuration will be used:"
     for key in "${!CONFIG[@]}"; do
         msg_info "$key: ${CONFIG[$key]}"
     done
-
+    
     # Ask for confirmation before proceeding
-    read -p "Do you want to proceed with this configuration? (y/n): " proceed
+    proceed=$(get_input "Do you want to proceed with this configuration? (y/n): " "y")
     if [[ "$proceed" != "y" && "$proceed" != "Y" ]]; then
         msg_info "Exiting the script. No changes were made."
         exit 1
@@ -282,7 +284,7 @@ enable_sshfs() {
 
 
     # 3. Install SSHFS if it's not already installed
-    read -p "Do you want to check and install SSHFS if necessary? (y/n): " install_sshfs
+    install_sshfs=$(get_input "Do you want to check and install SSHFS if necessary? (y/n): " "y")
     if [[ "$install_sshfs" == "y" || "$install_sshfs" == "Y" ]]; then
         msg_info "Checking if SSHFS is installed..."
         if ! command -v sshfs &> /dev/null; then
@@ -297,7 +299,7 @@ enable_sshfs() {
 
     
     # 4. Generate SSH key if it doesn't exist
-    read -p "Do you want to generate an SSH key (if it doesn't already exist)? (y/n): " generate_ssh_key
+    generate_ssh_key=$(get_input "Do you want to generate an SSH key (if it doesn't already exist)? (y/n): " "y")
     if [[ "$generate_ssh_key" == "y" || "$generate_ssh_key" == "Y" ]]; then
         msg_info "Checking if the SSH key exists..."
         if [[ ! -f "${CONFIG[SSH_KEY_PATH]}" ]]; then
@@ -310,14 +312,14 @@ enable_sshfs() {
         msg_info "Skipping SSH key generation."
     fi
 
-    
+
     # 5. Copy the public SSH key to the remote server (optional)
-    read -p "Do you want to copy the SSH public key to the remote host? (y/n): " copy_ssh_key
+    copy_ssh_key=$(get_input "Do you want to copy the SSH public key to the remote host? (y/n): " "y")
     if [[ "$copy_ssh_key" == "y" || "$copy_ssh_key" == "Y" ]]; then
         msg_info "Checking if the SSH public key is already on the remote server..."
         if ssh -i "${CONFIG[SSH_KEY_PATH]}" "$CONFIG[REMOTE_USER]@$CONFIG[REMOTE_HOST]" "grep -q '$(cat ${CONFIG[SSH_KEY_PATH]}.pub)' ~/.ssh/authorized_keys"; then
             msg_info "The SSH public key is already in the 'authorized_keys' file on the remote server."
-            read -p "Do you want to replace the existing key? (y/n): " replace_key
+            replace_key=$(get_input "Do you want to replace the existing key? (y/n): " "y")
             if [[ "$replace_key" == "y" || "$replace_key" == "Y" ]]; then
                 # Remove the existing key and add the new one
                 msg_info "Removing the old key and adding the new one..."
@@ -337,7 +339,7 @@ enable_sshfs() {
 
 
     # 6. Create the mount folder if it doesn't already exist
-    read -p "Do you want to create the local mount folder '${CONFIG[LOCAL_MOUNT]}'? (y/n): " create_mount
+    create_mount=$(get_input "Do you want to create the local mount folder '${CONFIG[LOCAL_MOUNT]}'? (y/n): " "y")
     if [[ "$create_mount" == "y" || "$create_mount" == "Y" ]]; then
         msg_info "Creating the local mount point if it doesn't exist..."
         mkdir -p "${CONFIG[LOCAL_MOUNT]}"
@@ -372,7 +374,7 @@ enable_sshfs() {
     
 
     # 8. Check if the mount is successful
-    read -p "Do you want to check if the mount was successful? (y/n): " check_mount
+    check_mount=$(get_input "Do you want to check if the mount was successful? (y/n): " "y")
     if [[ "$check_mount" == "y" || "$check_mount" == "Y" ]]; then
         msg_info "Checking if the mount was successful..."
         if mountpoint -q "${CONFIG[LOCAL_MOUNT]}"; then
@@ -386,7 +388,7 @@ enable_sshfs() {
 
 
     # 9. Ask if the metadata.db file should be copied to the library directory on the mounted share
-    read -p "Do you want to copy '/opt/calibre-web/metadata.db' to the '/library' folder of the mounted share and create an initial directory structure on the share? (y/n): " copy_metadata
+    copy_metadata=$(get_input "Do you want to copy '/opt/calibre-web/metadata.db' to the '/library' folder of the mounted share and create an initial directory structure on the share? (y/n): " "y")
     if [[ "$copy_metadata" == "y" || "$copy_metadata" == "Y" ]]; then
         msg_info "Creating the required folder structure on the mounted share..."
         
@@ -413,9 +415,9 @@ enable_sshfs() {
         msg_info "Skipping the copy of the metadata.db file."
     fi
 
-
+    
     # 10. Patching the Calibre-Web Systemd Service and the auto_library.py file
-    read -p "Do you want to patch the Calibre-Web systemd service and '${CONFIG[LOCAL_MOUNT]}/scripts/auto_library.py' to update the path to the share? (y/n): " patch_service
+    patch_service=$(get_input "Do you want to patch the Calibre-Web systemd service and '${CONFIG[LOCAL_MOUNT]}/scripts/auto_library.py' to update the path to the share? (y/n): " "y")
     if [[ "$patch_service" == "y" || "$patch_service" == "Y" ]]; then
         msg_info "Patching the Calibre-Web systemd service and '${CONFIG[LOCAL_MOUNT]}/scripts/auto_library.py' to use the correct paths..."
         
@@ -462,6 +464,7 @@ enable_sshfs() {
     else
         msg_info "Skipping the patching of the systemd service and '${CONFIG[LOCAL_MOUNT]}/scripts/auto_library.py'."
     fi
+    
     
     # feature for next release?
     # calibredb restore_database --really-do-it --with-library /mnt/cwa_share/library/metadata.db --with-library /mnt/cwa_share/library
