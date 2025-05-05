@@ -34,11 +34,11 @@ Please note the script does not support updating the container. You have to take
 
 2. The minimum required specs for the container are:
 
-* 2 CPU's
+* 2 CPUs
 * 2GB ram
 * 5GB disk size
 
-The disk size depends on your usecase. If you want to store your data inside the container aswell, please add more space to the container, as these are only the minimum requirements to keep the container running.
+The disk size depends on your usecase. If you want to store your data inside the container as well, please add more space to the container, as these are only the minimum requirements to keep the container running.
 
 ## What does it look like ❓
 
