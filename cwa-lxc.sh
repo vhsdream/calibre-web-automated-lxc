@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# v1.1.1
+# v1.2.0-alpha
 # Copyright 2025
 # Author: vhsdream
 # License: GNU GPL
@@ -14,8 +14,8 @@ usage() {
   header
   cat <<EOF
 Functions:
-'install'   Installs Calibre-Web Automated on a Debian 12 LXC in Proxmox.
-'update'    Checks for updates to Calibre-Web Automated upstream and applies them to an existing installation.
+'install'   Installs Calibre-Web Automated.
+'update'    Checks for updates to Kepubify, Calibre-Web, and Calibre-Web Automated upstream and applies them to an existing installation.
 
 Available options:
 -h, --help      Print this help and exit
@@ -166,6 +166,7 @@ OLD_META_LOGS="$OLD_BASE/metadata_change_logs"
 META_LOGS="$CONFIG/metadata_change_logs"
 INGEST="cwa-book-ingest"
 CONVERSION=".cwa_conversion_tmp"
+CWA_RELEASE=$(curl -s https://api.github.com/repos/crocodilestick/Calibre-Web-Automated/releases/latest | grep "tag_name" | awk '{print substr($2, 3, length($2)-4) }')
 
 # Main functions
 install() {
@@ -253,10 +254,9 @@ EOF
 
   msg_start "Installing Calibre-Web Automated..."
   cd /tmp
-  RELEASE=$(curl -s https://api.github.com/repos/crocodilestick/Calibre-Web-Automated/releases/latest | grep "tag_name" | awk '{print substr($2, 3, length($2)-4) }')
-  wget -q "https://github.com/crocodilestick/Calibre-Web-Automated/archive/refs/tags/V$RELEASE.zip" -O cwa.zip
+  curl -fsSL "https://github.com/crocodilestick/Calibre-Web-Automated/archive/refs/tags/V$CWA_RELEASE.zip" -o cwa.zip
   unzip -q cwa.zip
-  mv Calibre-Web-Automated-"$RELEASE"/ /opt/cwa
+  mv Calibre-Web-Automated-"$CWA_RELEASE"/ "$BASE"
   cd /opt/cwa
   uv -q pip install -r requirements.txt
   deactivate
@@ -375,30 +375,13 @@ EOF
   WantedBy=timers.target
 EOF
 
-  cd scripts
-  chmod +x check-cwa-services.sh ingest-service.sh change-detector.sh
-  echo "V${RELEASE}" >/opt/cwa/version.txt
+  echo "V${CWA_RELEASE}" >"$BASE"/version.txt
   systemctl -q enable --now cwa.target
   $shh apt autoremove
   $shh apt autoclean
   rm -f /tmp/cwa.zip
   sleep 3
-  local services=("cps" "cwa-ingester" "cwa-change-detector")
-  local status=""
-  status=$(for service in "${services[@]}"; do
-    systemctl is-active "$service" | grep active -
-  done)
-  if [[ "$status" ]]; then
-    msg_done "Calibre-Web Automated is live!"
-    sleep 1
-    LOCAL_IP=$(hostname -I | awk '{print $1}')
-    msg_info "Go to ${YELLOW}http://$LOCAL_IP:8083${CLR} to login"
-    sleep 2
-    msg_info "${PURPLE}Default creds are user: 'admin', password: 'admin123'${CLR}"
-    exit 0
-  else
-    die "Something's not right, please check CWA services!"
-  fi
+  service_check install
 }
 
 replacer() {
@@ -521,10 +504,94 @@ else
     fi
 fi
 EOF
+  cd "$SCRIPTS"
+  chmod +x check-cwa-services.sh ingest-service.sh change-detector.sh
 }
 
 update() {
-  msg_info "${RED}Sorry, I lied, updating is not yet implemented!${CLR}"
+  if [[ ! -d "$BASE" ]] || [[ ! -d /opt/calibre-web ]]; then
+    die "Is Calibre-Web even installed???"
+  fi
+
+  msg_start "Updating the OS..."
+  $shh apt update && apt dist-upgrade -y
+  msg_done "OS updated."
+
+  if [[ "$CWA_RELEASE" != "$(cat $BASE/version.txt)" ]]; then
+    msg_start "Stopping all Calibre-Web Automated services..."
+    systemctl stop cps cwa-ingester cwa-change-detector cwa-autozip.timer
+    msg_done "CWA Services stopped!"
+
+    KEPUB_RELEASE="$(curl -s https://api.github.com/repos/pgaskin/kepubify/releases/latest | grep "tag_name" | awk '{print substr($2, 3, length($2)-4) }')"
+    if [[ "$KEPUB_RELEASE" != "$(cat /opt/kepubify_version.txt)" ]]; then
+      msg_start "Updating Kepubify..."
+      cd /opt/kepubify
+      curl -fsSLO https://github.com/pgaskin/kepubify/releases/latest/download/kepubify-linux-64bit &>/dev/null
+      chmod +x ./kepubify-linux-64bit
+      echo "$KEPUB_RELEASE" >./kepubify_version.txt
+      msg_done "Kepubify updated!"
+    fi
+
+    msg_start "Updating Calibre-Web..."
+    cd /opt/calibre-web
+    source /opt/venv/bin/activate
+    uv -q pip install --upgrade calibreweb[goodreads,metadata,kobo]
+    uv -q pip list | grep calibreweb | awk '{print $2}' >/opt/calibre-web/calibreweb_version.txt
+    msg_done "Calibre-Web updated!"
+
+    msg_start "Updating Calibre-Web Automated, please wait..."
+    cd /tmp
+    curl -fsSL "https://github.com/crocodilestick/Calibre-Web-Automated/archive/refs/tags/V$CWA_RELEASE.zip" -o cwa.zip
+    unzip -q cwa.zip
+    cp "$BASE"/dirs.json /opt/dirs.json.bak
+    rm -rf "$BASE"
+    mv Calibre-Web-Automated-"$CWA_RELEASE"/ "$BASE"
+    cd "$BASE"
+    uv -q pip install -r requirements.txt
+    deactivate
+    mv /opt/dirs.json.bak "$BASE"/dirs.json
+    msg_done "Calibre-Web Automated updated!"
+
+    msg_start "Running patching operations..."
+    replacer
+    script_generator
+    chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST",kepubify,calibre-web,venv}
+    msg_done "Patching completed!"
+
+    msg_start "Cleaning up & restarting CWA services..."
+    rm -r /tmp/cwa.zip
+    echo "$CWA_RELEASE" >"$BASE"/version.txt
+    systemctl start cps cwa-ingester cwa-change-detector cwa-autozip.timer
+    service_check update
+  else
+    msg_info "Calibre-Web Automated is already up-to-date, you have version $CWA_RELEASE. Goodbye!"
+  fi
+}
+
+service_check() {
+  local services=("cps" "cwa-ingester" "cwa-change-detector" "cwa-autozip.timer")
+  local status=""
+  status=$(for service in "${services[@]}"; do
+    systemctl is-active "$service" | grep active -
+  done)
+  if [[ "$status" ]]; then
+    if [[ "$1" == "install" ]]; then
+      msg_done "Calibre-Web Automated is live!"
+      sleep 1
+      LOCAL_IP=$(hostname -I | awk '{print $1}')
+      msg_info "Go to ${YELLOW}http://$LOCAL_IP:8083${CLR} to login"
+      sleep 2
+      msg_info "${PURPLE}Default creds are user: 'admin', password: 'admin123'${CLR}"
+      exit
+    elif [[ "$1" == "update" ]]; then
+      msg_done "Calibre-Web Automated is fully updated and running!"
+      sleep 1
+      msg_info "Enjoy your shiny new ${PURPLE}Calibre-Web Automated LXC!${CLR}"
+      exit
+    fi
+  else
+    die "Something's not right, please check CWA services!"
+  fi
 }
 
 [ "$(id -u)" -ne 0 ] && die "This script requires root privileges. Please run with sudo or as the root user."
