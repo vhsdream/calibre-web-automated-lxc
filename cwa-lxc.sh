@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# v1.0.0
+# v1.1.1
 # Copyright 2025
 # Author: vhsdream
 # License: GNU GPL
