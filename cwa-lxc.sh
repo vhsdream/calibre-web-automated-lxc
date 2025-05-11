@@ -431,7 +431,7 @@ replacer() {
     -e "s|app/KEPUBIFY_RELEASE|opt/kepubify/version.txt|g" \
     -e "s|app/cwa_update_notice|opt/.cwa_update_notice|g" \
     $APP/admin.py $APP/render_template.py
-  sed -i "s|\"$CONFIG/post_request\"|\"$OLD_CONFIG/post_request\"|" $APP/cwa_functions.py
+  sed -i "s|\"$CONFIG/post_request\"|\"$OLD_CONFIG/post_request\"|; s|python3|/opt/venv/bin/python3|g" $APP/cwa_functions.py
   sed -i -e "/^# Define user/,/^os.chown/d" -e "/nbp.set_l\|self.set_l/d" -e "/def set_libr/,/^$/d" \
     ./scripts/{convert_library.py,kindle_epub_fixer.py,ingest_processor.py}
   sed -i "/chown/d" ./scripts/auto_library.py
