@@ -193,6 +193,7 @@ install() {
     inotify-tools \
     zip \
     unzip \
+    unrar-free \
     sqlite3
   msg_done "Dependencies installed!"
 
