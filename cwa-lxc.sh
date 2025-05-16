@@ -228,6 +228,7 @@ install() {
     User=calibre
     Group=calibre
     WorkingDirectory=/opt/acw
+    EnvironmentFile=/opt/acw/.env
     ExecStart=/opt/acw/venv/bin/cps
     TimeoutStopSec=20
     KillMode=process
@@ -270,6 +271,10 @@ EOF
   msg_done "Patching operations successful!"
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
+  cat <<EOF >"$BASE"/.env
+  CONFIG_DIR=/var/lib/acw
+  CALIBRE_DBPATH=/var/lib/acw
+EOF
   cat <<EOF >/etc/systemd/system/acw-autolibrary.service
   [Unit]
   Description=AutoCaliWeb Auto-Library Service
@@ -372,7 +377,7 @@ EOF
 
   cd "$SCRIPTS"
   chmod +x check-acw-services.sh ingest-service.sh change-detector.sh
-  echo "${RELEASE}" >/opt/acw/version.txt
+  echo "v${RELEASE}" >/opt/acw/version.txt
   systemctl -q enable --now acw.target
   $shh apt autoremove
   $shh apt autoclean
@@ -381,7 +386,7 @@ EOF
   local services=("cps" "acw-ingester" "acw-change-detector")
   local status=""
   status=$(for service in "${services[@]}"; do
-    systemctl is-active "$service" | grep active -
+    systemctl is-active "$service" | grep ^active$ -
   done)
   if [[ "$status" ]]; then
     msg_done "AutoCaliWeb is live!"
@@ -423,19 +428,11 @@ replacer() {
     -e "s|app/ACW_RELEASE|opt/acw/version.txt|g" \
     -e "s|app/KEPUBIFY_RELEASE|opt/kepubify/version.txt|g" \
     -e "s|app/acw_update_notice|opt/.acw_update_notice|g" \
-    $APP/admin.py $APP/render_template.py
-  # -e "s|app/LSCW_RELEASE|opt/calibre-web/calibreweb_version.txt|g"
-  # -e "s/lscw_version/calibreweb_version/g"
+    $APP/admin.py $APP/render_template.py $APP/services/hardcover.py
   sed -i "s|\"$CONFIG/post_request\"|\"$OLD_CONFIG/post_request\"|; s|python3|/opt/acw/venv/bin/python3|g" $APP/acw_functions.py
   sed -i -e "/^# Define user/,/^os.chown/d" -e "/nbp.set_l\|self.set_l/d" -e "/def set_libr/,/^$/d" \
     ./scripts/{convert_library.py,kindle_epub_fixer.py,ingest_processor.py}
   sed -i "/chown/d" ./scripts/auto_library.py
-  # sed -i -n '/Linuxserver.io/{x;d;};1h;1!{x;p;};${x;p;}' $APP/templates/admin.html &&
-  #   sed -i -e "/Linuxserver.io/,+3d" \
-  #     -e "s/commit/calibreweb_version/" $APP/templates/admin.html
-
-  # patch the calibre-web python libs in the virtualenv
-  # cp -r /opt/acw/root/app/calibre-web/cps/* /opt/venv/lib/python3*/site-packages/calibreweb/cps
 }
 
 script_generator() {
