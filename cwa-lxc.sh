@@ -213,36 +213,6 @@ install() {
   $shh apt-get install -y calibre --no-install-recommends
   msg_done "Calibre installed!"
 
-  # Create calibre user
-  useradd -U -s /usr/sbin/nologin -M -d "$BASE" calibre
-  chown -R calibre:calibre "$BASE"
-
-  Create service file
-  cat <<EOF >/etc/systemd/system/cps.service
-    [Unit]
-    Description=Calibre-Web Server
-    After=network.target
-
-    [Service]
-    Type=simple
-    User=calibre
-    Group=calibre
-    WorkingDirectory=/opt/acw
-    EnvironmentFile=/opt/acw/.env
-    ExecStart=/opt/acw/venv/bin/cps
-    TimeoutStopSec=20
-    KillMode=process
-    Restart=on-failure
-
-    [Install]
-    WantedBy=multi-user.target
-EOF
-
-  # msg_start "Starting and then stopping Calibre-Web Service..."
-  # necessary otherwise the patching operation will fail
-  # systemctl start cps && sleep 5 && systemctl stop cps
-  # msg_done "Calibre-Web Service successfully cycled."
-
   msg_start "Installing AutoCaliWeb..."
   cd /tmp
   RELEASE=$(curl -s https://api.github.com/repos/gelbphoenix/autocaliweb/releases/latest | grep "tag_name" | awk '{print substr($2, 3, length($2)-4) }')
@@ -267,13 +237,31 @@ EOF
   # patcher functions
   replacer
   script_generator
-  chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST","$LIBRARY",kepubify}
   msg_done "Patching operations successful!"
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
   cat <<EOF >"$BASE"/.env
   CONFIG_DIR=/var/lib/acw
   CALIBRE_DBPATH=/var/lib/acw
+EOF
+  cat <<EOF >/etc/systemd/system/cps.service
+    [Unit]
+    Description=Calibre-Web Server
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=calibre
+    Group=calibre
+    WorkingDirectory=/opt/acw
+    EnvironmentFile=/opt/acw/.env
+    ExecStart=/opt/acw/venv/bin/cps
+    TimeoutStopSec=20
+    KillMode=process
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
 EOF
   cat <<EOF >/etc/systemd/system/acw-autolibrary.service
   [Unit]
@@ -378,6 +366,8 @@ EOF
   cd "$SCRIPTS"
   chmod +x check-acw-services.sh ingest-service.sh change-detector.sh
   echo "v${RELEASE}" >/opt/acw/version.txt
+  useradd -r -M -U -s /usr/sbin/nologin -d "$BASE" calibre
+  chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST","$LIBRARY",kepubify}
   systemctl -q enable --now acw.target
   $shh apt autoremove
   $shh apt autoclean
