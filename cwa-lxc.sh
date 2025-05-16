@@ -378,7 +378,7 @@ EOF
   readarray -t status < <(for service in "${services[@]}"; do
     systemctl is-active "$service" | grep ^active$ -
   done)
-  if [[ "${#status[@]}" -lt 3 ]]; then
+  if [[ "${#status[@]}" -eq 3 ]]; then
     msg_done "AutoCaliWeb is live!"
     sleep 1
     LOCAL_IP=$(hostname -I | awk '{print $1}')
