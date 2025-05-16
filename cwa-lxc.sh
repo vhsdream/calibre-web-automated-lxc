@@ -247,6 +247,8 @@ install() {
   cat <<EOF >"$BASE"/.env
 CONFIG_DIR=/var/lib/acw
 CALIBRE_DBPATH=/var/lib/acw
+DEFAULT_LOG_FILE=/var/lib/acw/autocaliweb.log
+DEFAULT_ACCESS_LOG=/var/lib/acw/access.log
 EOF
   cat <<EOF >/etc/systemd/system/cps.service
 [Unit]
