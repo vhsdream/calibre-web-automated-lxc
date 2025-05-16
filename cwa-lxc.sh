@@ -256,7 +256,7 @@ EOF
     Group=calibre
     WorkingDirectory=/opt/acw
     EnvironmentFile=/opt/acw/.env
-    ExecStart=/opt/acw/venv/bin/cps
+    ExecStart=/opt/acw/venv/bin/python3 /opt/acw/cps.py
     TimeoutStopSec=20
     KillMode=process
     Restart=on-failure
