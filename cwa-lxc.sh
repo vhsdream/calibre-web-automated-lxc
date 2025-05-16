@@ -242,126 +242,121 @@ install() {
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
   cat <<EOF >"$BASE"/.env
-  CONFIG_DIR=/var/lib/acw
-  CALIBRE_DBPATH=/var/lib/acw
+CONFIG_DIR=/var/lib/acw
+CALIBRE_DBPATH=/var/lib/acw
 EOF
   cat <<EOF >/etc/systemd/system/cps.service
-    [Unit]
-    Description=Calibre-Web Server
-    After=network.target
+[Unit]
+Description=Calibre-Web Server
+After=network.target
 
-    [Service]
-    Type=simple
-    User=calibre
-    Group=calibre
-    WorkingDirectory=/opt/acw
-    EnvironmentFile=/opt/acw/.env
-    ExecStart=/opt/acw/venv/bin/python3 /opt/acw/cps.py
-    TimeoutStopSec=20
-    KillMode=process
-    Restart=on-failure
+[Service]
+Type=simple
+User=calibre
+Group=calibre
+WorkingDirectory=/opt/acw
+EnvironmentFile=/opt/acw/.env
+ExecStart=/opt/acw/venv/bin/python3 /opt/acw/cps.py
+TimeoutStopSec=20
+KillMode=process
+Restart=on-failure
 
-    [Install]
-    WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 EOF
   cat <<EOF >/etc/systemd/system/acw-autolibrary.service
-  [Unit]
-  Description=AutoCaliWeb Auto-Library Service
-  After=network.target cps.service
+[Unit]
+Description=AutoCaliWeb Auto-Library Service
+After=network.target cps.service
 
-  [Service]
-  Type=simple
-  User=calibre
-  Group=calibre
-  WorkingDirectory=/opt/acw
-  ExecStart=/opt/acw/venv/bin/python3 /opt/acw/scripts/auto_library.py
-  TimeoutStopSec=10
-  KillMode=process
-  Restart=on-failure
+[Service]
+Type=simple
+User=calibre
+Group=calibre
+WorkingDirectory=/opt/acw
+ExecStart=/opt/acw/venv/bin/python3 /opt/acw/scripts/auto_library.py
+TimeoutStopSec=10
+KillMode=process
+Restart=on-failure
 
-  [Install]
-  WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 EOF
-
   cat <<EOF >/etc/systemd/system/acw-ingester.service
-  [Unit]
-  Description=AutoCaliWeb Ingest Service
-  After=network.target cps.service acw-autolibrary.service
+[Unit]
+Description=AutoCaliWeb Ingest Service
+After=network.target cps.service acw-autolibrary.service
 
-  [Service]
-  Type=simple
-  User=calibre
-  Group=calibre
-  WorkingDirectory=/opt/acw
-  ExecStart=/usr/bin/bash -c /opt/acw/scripts/ingest-service.sh
-  TimeoutStopSec=10
-  KillMode=mixed
-  Restart=on-failure
+[Service]
+Type=simple
+User=calibre
+Group=calibre
+WorkingDirectory=/opt/acw
+ExecStart=/usr/bin/bash -c /opt/acw/scripts/ingest-service.sh
+TimeoutStopSec=10
+KillMode=mixed
+Restart=on-failure
 
-  [Install]
-  WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 EOF
-
   cat <<EOF >/etc/systemd/system/acw-change-detector.service
-  [Unit]
-  Description=AutoCaliWeb Metadata Change Detector Service
-  After=network.target cps.service acw-autolibrary.service
+[Unit]
+Description=AutoCaliWeb Metadata Change Detector Service
+After=network.target cps.service acw-autolibrary.service
 
-  [Service]
-  Type=simple
-  User=calibre
-  Group=calibre
-  WorkingDirectory=/opt/acw
-  ExecStart=/usr/bin/bash -c /opt/acw/scripts/change-detector.sh
-  TimeoutStopSec=10
-  KillMode=mixed
-  Restart=on-failure
+[Service]
+Type=simple
+User=calibre
+Group=calibre
+WorkingDirectory=/opt/acw
+ExecStart=/usr/bin/bash -c /opt/acw/scripts/change-detector.sh
+TimeoutStopSec=10
+KillMode=mixed
+Restart=on-failure
 
-  [Install]
-  WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 EOF
-
   cat <<EOF >/etc/systemd/system/acw.target
-  [Unit]
-  Description=AutoCaliWeb Services
-  After=network-online.target
-  Wants=cps.service acw-autolibrary.service acw-ingester.service acw-change-detector.service acw-autozip.timer
+[Unit]
+Description=AutoCaliWeb Services
+After=network-online.target
+Wants=cps.service acw-autolibrary.service acw-ingester.service acw-change-detector.service acw-autozip.timer
 
-  [Install]
-  WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 EOF
-
   cat <<EOF >/etc/systemd/system/acw-autozip.service
-  [Unit]
-  Description=AutoCaliWeb Nightly Auto-Zip Backup Service
-  After=network.target cps.service
+[Unit]
+Description=AutoCaliWeb Nightly Auto-Zip Backup Service
+After=network.target cps.service
 
-  [Service]
-  Type=simple
-  User=calibre
-  Group=calibre
-  WorkingDirectory=/var/lib/acw/processed_books
-  ExecStart=/opt/acw/venv/bin/python3 /opt/acw/scripts/auto_zip.py
-  Restart=on-failure
+[Service]
+Type=simple
+User=calibre
+Group=calibre
+WorkingDirectory=/var/lib/acw/processed_books
+ExecStart=/opt/acw/venv/bin/python3 /opt/acw/scripts/auto_zip.py
+Restart=on-failure
 
-  [Install]
-  WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 EOF
-
   cat <<EOF >/etc/systemd/system/acw-autozip.timer
-  [Unit]
-  Description=AutoCaliWeb Nightly Auto-Zip Backup Timer
-  RefuseManualStart=no
-  RefuseManualStop=no
+[Unit]
+Description=AutoCaliWeb Nightly Auto-Zip Backup Timer
+RefuseManualStart=no
+RefuseManualStop=no
 
-  [Timer]
-  Persistent=true
-  # run every day at 11:59PM
-  OnCalendar=*-*-* 23:59:00
-  Unit=acw-autozip.service
+[Timer]
+Persistent=true
+# run every day at 11:59PM
+OnCalendar=*-*-* 23:59:00
+Unit=acw-autozip.service
 
-  [Install]
-  WantedBy=timers.target
+[Install]
+WantedBy=timers.target
 EOF
 
   cd "$SCRIPTS"
