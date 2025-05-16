@@ -230,10 +230,13 @@ install() {
   msg_done "AutoCaliWeb installed!"
 
   msg_start "Starting patching operations..."
-  mkdir -p /opt/{acw-book-ingest,calibre-library}
+  mkdir -p /opt/{"$INGEST","$LIBRARY"}
   mkdir -p /var/lib/acw/{metadata_change_logs,metadata_temp,processed_books,log_archive,.acw_conversion_tmp}
   mkdir -p /var/lib/acw/processed_books/{converted,imported,failed,fixed_originals}
   touch /var/lib/acw/convert-library.log
+  curl -fsSL https://github.com/gelbphoenix/autocaliweb/raw/refs/heads/master/library/metadata.db -o /opt/"$LIBRARY"/metadata.db
+  sleep 2
+  curl -fsSL https://github.com/gelbphoenix/autocaliweb/raw/refs/heads/master/library/app.db -o "$DB"
 
   # patcher functions
   replacer
@@ -264,28 +267,28 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
-  cat <<EOF >/etc/systemd/system/acw-autolibrary.service
-[Unit]
-Description=AutoCaliWeb Auto-Library Service
-After=network.target cps.service
-
-[Service]
-Type=simple
-User=calibre
-Group=calibre
-WorkingDirectory=/opt/acw
-ExecStart=/opt/acw/venv/bin/python3 /opt/acw/scripts/auto_library.py
-TimeoutStopSec=10
-KillMode=process
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
+  #   cat <<EOF >/etc/systemd/system/acw-autolibrary.service
+  # [Unit]
+  # Description=AutoCaliWeb Auto-Library Service
+  # After=network.target cps.service
+  #
+  # [Service]
+  # Type=simple
+  # User=calibre
+  # Group=calibre
+  # WorkingDirectory=/opt/acw
+  # ExecStart=/opt/acw/venv/bin/python3 /opt/acw/scripts/auto_library.py
+  # TimeoutStopSec=10
+  # KillMode=process
+  # Restart=on-failure
+  #
+  # [Install]
+  # WantedBy=multi-user.target
+  # EOF
   cat <<EOF >/etc/systemd/system/acw-ingester.service
 [Unit]
 Description=AutoCaliWeb Ingest Service
-After=network.target cps.service acw-autolibrary.service
+After=network.target cps.service
 
 [Service]
 Type=simple
@@ -303,7 +306,7 @@ EOF
   cat <<EOF >/etc/systemd/system/acw-change-detector.service
 [Unit]
 Description=AutoCaliWeb Metadata Change Detector Service
-After=network.target cps.service acw-autolibrary.service
+After=network.target cps.service
 
 [Service]
 Type=simple
@@ -322,7 +325,7 @@ EOF
 [Unit]
 Description=AutoCaliWeb Services
 After=network-online.target
-Wants=cps.service acw-autolibrary.service acw-ingester.service acw-change-detector.service acw-autozip.timer
+Wants=cps.service acw-ingester.service acw-change-detector.service acw-autozip.timer
 
 [Install]
 WantedBy=multi-user.target
@@ -361,7 +364,8 @@ EOF
 
   cd "$SCRIPTS"
   chmod +x check-acw-services.sh ingest-service.sh change-detector.sh
-  echo "v${RELEASE}" >/opt/acw/version.txt
+  $shh "$BASE"/venv/bin/python3 "$SCRIPTS"/auto_library.py
+  echo "v${RELEASE}" >"$BASE"/version.txt
   useradd -r -M -U -s /usr/sbin/nologin -d "$BASE" calibre
   chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST","$LIBRARY",kepubify}
   systemctl -q enable --now acw.target
@@ -389,7 +393,7 @@ EOF
 replacer() {
   cd $BASE
   # Deal with a couple initial modifications
-  sed -i "s|\"/$LIBRARY\"|\"/opt/$LIBRARY\"|" dirs.json ./scripts/auto_library.py
+  sed -i "s|\"/$LIBRARY\"|\"/opt/$LIBRARY\"|" dirs.json "$SCRIPTS"/auto_library.py
   sed -i -e "s|\"$OLD_CONFIG/$CONVERSION\"|\"$CONFIG/$CONVERSION\"|" \
     -e "s|\"/$INGEST\"|\"/opt/$INGEST\"|" dirs.json
 
@@ -417,7 +421,7 @@ replacer() {
   sed -i "s|\"$CONFIG/post_request\"|\"$OLD_CONFIG/post_request\"|; s|python3|/opt/acw/venv/bin/python3|g" $APP/acw_functions.py
   sed -i -e "/^# Define user/,/^os.chown/d" -e "/nbp.set_l\|self.set_l/d" -e "/def set_libr/,/^$/d" \
     ./scripts/{convert_library.py,kindle_epub_fixer.py,ingest_processor.py}
-  sed -i "/chown/d" ./scripts/auto_library.py
+  sed -i "/chown/d" "$SCRIPTS"/auto_library.py
 }
 
 script_generator() {
