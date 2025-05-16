@@ -375,11 +375,10 @@ EOF
   rm -f /tmp/acw.zip
   sleep 3
   local services=("cps" "acw-ingester" "acw-change-detector")
-  local status=""
-  status=$(for service in "${services[@]}"; do
+  readarray -t status < <(for service in "${services[@]}"; do
     systemctl is-active "$service" | grep ^active$ -
   done)
-  if [[ "$status" ]]; then
+  if [[ "${#status[@]}" -lt 3 ]]; then
     msg_done "AutoCaliWeb is live!"
     sleep 1
     LOCAL_IP=$(hostname -I | awk '{print $1}')
