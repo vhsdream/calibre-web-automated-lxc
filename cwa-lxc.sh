@@ -211,6 +211,7 @@ install() {
 
   msg_start "Installing Calibre..."
   $shh apt-get install -y calibre --no-install-recommends
+  calibre --version | awk '{print substr($3, 1, length($3) -1)}' >/opt/calibre_version.txt
   msg_done "Calibre installed!"
 
   msg_start "Installing Calibre-Web..."
@@ -267,11 +268,12 @@ EOF
   mkdir -p /var/lib/cwa/{metadata_change_logs,metadata_temp,processed_books,log_archive,.cwa_conversion_tmp}
   mkdir -p /var/lib/cwa/processed_books/{converted,imported,failed,fixed_originals}
   touch /var/lib/cwa/convert-library.log
+  touch /opt/.cwa_update_notice
 
   # patcher functions
   replacer
   script_generator
-  chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST",kepubify,calibre-web,venv}
+  chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST",kepubify,calibre-web,venv,.cwa_update_notice,calibre_version.txt}
   msg_done "Patching operations successful!"
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
@@ -386,9 +388,9 @@ EOF
   local services=("cps" "cwa-ingester" "cwa-change-detector")
   local status=""
   status=$(for service in "${services[@]}"; do
-    systemctl is-active "$service" | grep active -
+    systemctl is-active "$service" | grep "^active" -
   done)
-  if [[ "$status" ]]; then
+  if [[ "${#status[@]}" -eq 3 ]]; then
     msg_done "Calibre-Web Automated is live!"
     sleep 1
     LOCAL_IP=$(hostname -I | awk '{print $1}')
@@ -427,6 +429,7 @@ replacer() {
   sed -i -e "s|\"/admin$CONFIG\"|\"/admin$OLD_CONFIG\"|" \
     -e "s|app/LSCW_RELEASE|opt/calibre-web/calibreweb_version.txt|g" \
     -e "s|app/CWA_RELEASE|opt/cwa/version.txt|g" \
+    -e "s|app/CALIBRE_RELEASE|opt/calibre_version.txt|g" \
     -e "s/lscw_version/calibreweb_version/g" \
     -e "s|app/KEPUBIFY_RELEASE|opt/kepubify/version.txt|g" \
     -e "s|app/cwa_update_notice|opt/.cwa_update_notice|g" \
