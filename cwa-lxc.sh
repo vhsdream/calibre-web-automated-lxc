@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# v1.1.1
+# v2.0.0
 # Copyright 2025
 # Author: vhsdream
 # License: GNU GPL
@@ -32,18 +32,18 @@ EOF
 
 header() {
   t_width=$(tput cols 2>/dev/null)
-  if [[ "$t_width" -gt 90 ]]; then
+  if [[ "$t_width" -gt 110 ]]; then
     echo -e "$(
       cat <<EOF
         ${CYAN}
-                                         ▄▄▄▄
-                                         ▀▀██
-  ▄█████▄ ██      ██  ▄█████▄              ██      ▀██  ██▀   ▄█████▄
- ██▀    ▀ ▀█  ██  █▀  ▀ ▄▄▄██              ██        ████    ██▀    ▀
- ██        ██▄██▄██  ▄██▀▀▀██   █████      ██        ▄██▄    ██
- ▀██▄▄▄▄█  ▀██  ██▀  ██▄▄▄███              ██▄▄▄    ▄█▀▀█▄   ▀██▄▄▄▄█
-   ▀▀▀▀▀    ▀▀  ▀▀    ▀▀▀▀ ▀▀               ▀▀▀▀   ▀▀▀  ▀▀▀    ▀▀▀▀▀
-${CLR}${YELLOW}A helper script for AutoCaliWeb in a Proxmox LXC${CLR}
+                                                             ▄▄▄▄         ██                         ▄▄       
+                       ██                                    ▀▀██         ▀▀                         ██       
+  ▄█████▄  ██    ██  ███████    ▄████▄    ▄█████▄   ▄█████▄    ██       ████    ██      ██  ▄████▄   ██▄███▄  
+  ▀ ▄▄▄██  ██    ██    ██      ██▀  ▀██  ██▀    ▀   ▀ ▄▄▄██    ██         ██    ▀█  ██  █▀ ██▄▄▄▄██  ██▀  ▀██ 
+ ▄██▀▀▀██  ██    ██    ██      ██    ██  ██        ▄██▀▀▀██    ██         ██     ██▄██▄██  ██▀▀▀▀▀▀  ██    ██ 
+ ██▄▄▄███  ██▄▄▄███    ██▄▄▄   ▀██▄▄██▀  ▀██▄▄▄▄█  ██▄▄▄███    ██▄▄▄   ▄▄▄██▄▄▄  ▀██  ██▀  ▀██▄▄▄▄█  ███▄▄██▀ 
+  ▀▀▀▀ ▀▀   ▀▀▀▀ ▀▀     ▀▀▀▀     ▀▀▀▀      ▀▀▀▀▀    ▀▀▀▀ ▀▀     ▀▀▀▀   ▀▀▀▀▀▀▀▀   ▀▀  ▀▀     ▀▀▀▀▀   ▀▀ ▀▀▀   
+${CLR}${YELLOW}Helping you install & manage AutoCaliWeb in a Proxmox LXC${CLR}          ${RED}https://github.com/vhsdream/autocaliweb-lxc${CLR}
 EOF
     )"
   fi
@@ -198,11 +198,9 @@ install() {
   msg_done "Dependencies installed!"
 
   msg_start "Installing Kepubify..."
-  mkdir -p /opt/kepubify
-  cd /opt/kepubify
-  curl -fsSLO https://github.com/pgaskin/kepubify/releases/latest/download/kepubify-linux-64bit &>/dev/null
-  chmod +x kepubify-linux-64bit
-  ./kepubify-linux-64bit --version | awk '{print substr($2 ,2)}' >/opt/kepubify/version.txt
+  curl -fsSL https://github.com/pgaskin/kepubify/releases/latest/download/kepubify-linux-64bit -o /usr/bin/kepubify
+  chmod +x /usr/bin/kepubify
+  /usr/bin/kepubify --version | awk '{print substr($2 ,2)}' >/opt/kepubify-version.txt
   msg_done "Installed Kepubify!"
 
   msg_start "Installing uv..."
@@ -212,6 +210,7 @@ install() {
 
   msg_start "Installing Calibre..."
   $shh apt-get install -y calibre --no-install-recommends
+  calibre --version | awk '{print substr($3, 1, length($3)-1)}' >/opt/calibre-version.txt
   msg_done "Calibre installed!"
 
   msg_start "Installing AutoCaliWeb..."
@@ -233,7 +232,8 @@ install() {
   mkdir -p /opt/{"$INGEST","$LIBRARY"}
   mkdir -p /var/lib/acw/{metadata_change_logs,metadata_temp,processed_books,log_archive,.acw_conversion_tmp}
   mkdir -p /var/lib/acw/processed_books/{converted,imported,failed,fixed_originals}
-  touch /var/lib/acw/convert-library.log
+  touch "$CONFIG"/convert-library.log
+  touch /opt/.acw_update_notice
   curl -fsSL https://github.com/gelbphoenix/autocaliweb/raw/refs/heads/master/library/metadata.db -o /opt/"$LIBRARY"/metadata.db
   sleep 2
   curl -fsSL https://github.com/gelbphoenix/autocaliweb/raw/refs/heads/master/library/app.db -o "$DB"
@@ -245,10 +245,8 @@ install() {
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
   cat <<EOF >"$BASE"/.env
-CONFIG_DIR=/var/lib/acw
+CALIBRE_CONFIG_DIRECTORY=/var/lib/acw
 CALIBRE_DBPATH=/var/lib/acw
-DEFAULT_LOG_FILE=/var/lib/acw/autocaliweb.log
-DEFAULT_ACCESS_LOG=/var/lib/acw/access.log
 EOF
   cat <<EOF >/etc/systemd/system/cps.service
 [Unit]
@@ -269,24 +267,6 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
-  #   cat <<EOF >/etc/systemd/system/acw-autolibrary.service
-  # [Unit]
-  # Description=AutoCaliWeb Auto-Library Service
-  # After=network.target cps.service
-  #
-  # [Service]
-  # Type=simple
-  # User=calibre
-  # Group=calibre
-  # WorkingDirectory=/opt/acw
-  # ExecStart=/opt/acw/venv/bin/python3 /opt/acw/scripts/auto_library.py
-  # TimeoutStopSec=10
-  # KillMode=process
-  # Restart=on-failure
-  #
-  # [Install]
-  # WantedBy=multi-user.target
-  # EOF
   cat <<EOF >/etc/systemd/system/acw-ingester.service
 [Unit]
 Description=AutoCaliWeb Ingest Service
@@ -369,7 +349,7 @@ EOF
   $shh "$BASE"/venv/bin/python3 "$SCRIPTS"/auto_library.py
   echo "v${RELEASE}" >"$BASE"/version.txt
   useradd -r -M -U -s /usr/sbin/nologin -d "$BASE" calibre
-  chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST","$LIBRARY",kepubify}
+  chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST","$LIBRARY",.acw_update_notice,calibre-version.txt,kepubify-version.txt}
   systemctl -q enable --now acw.target
   $shh apt autoremove
   $shh apt autoclean
@@ -377,7 +357,7 @@ EOF
   sleep 3
   local services=("cps" "acw-ingester" "acw-change-detector")
   readarray -t status < <(for service in "${services[@]}"; do
-    systemctl is-active "$service" | grep ^active$ -
+    systemctl is-active "$service" | grep "^active" -
   done)
   if [[ "${#status[@]}" -eq 3 ]]; then
     msg_done "AutoCaliWeb is live!"
@@ -417,7 +397,8 @@ replacer() {
   # Deal with edge case(s)
   sed -i -e "s|\"/admin$CONFIG\"|\"/admin$OLD_CONFIG\"|" \
     -e "s|app/ACW_RELEASE|opt/acw/version.txt|g" \
-    -e "s|app/KEPUBIFY_RELEASE|opt/kepubify/version.txt|g" \
+    -e "s|app/CALIBRE_RELEASE|/opt/calibre-version.txt|g" \
+    -e "s|app/KEPUBIFY_RELEASE|opt/kepubify-version.txt|g" \
     -e "s|app/acw_update_notice|opt/.acw_update_notice|g" \
     $APP/admin.py $APP/render_template.py $APP/services/hardcover.py
   sed -i "s|\"$CONFIG/post_request\"|\"$OLD_CONFIG/post_request\"|; s|python3|/opt/acw/venv/bin/python3|g" $APP/acw_functions.py
