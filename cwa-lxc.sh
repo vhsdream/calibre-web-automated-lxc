@@ -602,10 +602,10 @@ update() {
 service_check() {
   local services=("cps" "cwa-ingester" "cwa-change-detector" "cwa-autozip.timer")
   local status=""
-  status=$(for service in "${services[@]}"; do
-    systemctl is-active "$service" | grep active -
+  readarray -t status < <(for service in "${services[@]}"; do
+    systemctl is-active "$service" | grep "^active" -
   done)
-  if [[ "$status" ]]; then
+  if [[ "${#status[@]}" -eq 4 ]]; then
     if [[ "$1" == "install" ]]; then
       msg_done "Calibre-Web Automated is live!"
       sleep 1
