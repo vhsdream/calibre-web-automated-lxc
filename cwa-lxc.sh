@@ -152,6 +152,7 @@ parse_params() {
 parse_params "$@"
 
 # Global vars
+VER_DIR="/opt/versions"
 OLD_BASE="/app/calibre-web-automated"
 BASE="/opt/cwa"
 SCRIPTS="$BASE/scripts"
@@ -196,11 +197,10 @@ install() {
   msg_done "Dependencies installed!"
 
   msg_start "Installing Kepubify..."
-  mkdir -p /opt/kepubify
-  cd /opt/kepubify
-  curl -fsSLO https://github.com/pgaskin/kepubify/releases/latest/download/kepubify-linux-64bit &>/dev/null
-  chmod +x kepubify-linux-64bit
-  ./kepubify-linux-64bit --version | awk '{print substr($2 ,2)}' >/opt/kepubify/version.txt
+  curl -fsSL https://github.com/pgaskin/kepubify/releases/latest/download/kepubify-linux-64bit -o /usr/bin/kepubify
+  chmod +x /usr/bin/kepubify
+  mkdir -p "$VER_DIR"
+  /usr/bin/kepubify --version | awk '{print substr($2 ,2)}' >"$VER_DIR"/kepubify.txt
   msg_done "Installed Kepubify!"
 
   msg_start "Installing uv & creating virtualenv..."
@@ -211,7 +211,7 @@ install() {
 
   msg_start "Installing Calibre..."
   $shh apt-get install -y calibre --no-install-recommends
-  calibre --version | awk '{print substr($3, 1, length($3) -1)}' >/opt/calibre_version.txt
+  calibre --version | awk '{print substr($3, 1, length($3) -1)}' >"$VER_DIR"/calibre.txt
   msg_done "Calibre installed!"
 
   msg_start "Installing Calibre-Web..."
@@ -220,7 +220,7 @@ install() {
   cd /opt/calibre-web
   source /opt/venv/bin/activate
   uv -q pip install calibreweb[goodreads,metadata,kobo]
-  uv -q pip list | grep calibreweb | awk '{print $2}' >/opt/calibre-web/calibreweb_version.txt
+  uv -q pip list | grep calibreweb | awk '{print $2}' >"$VER_DIR"/calibre-web.txt
   msg_done "Installed Calibre-Web!"
 
   # Create calibre user
@@ -273,7 +273,7 @@ EOF
   # patcher functions
   replacer
   script_generator
-  chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST",kepubify,calibre-web,venv,.cwa_update_notice,calibre_version.txt}
+  chown -R calibre:calibre "$BASE" "$CONFIG" "$VER_DIR" /opt/{"$INGEST",calibre-web,venv,.cwa_update_notice}
   msg_done "Patching operations successful!"
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
@@ -379,7 +379,7 @@ EOF
 
   cd scripts
   chmod +x check-cwa-services.sh ingest-service.sh change-detector.sh
-  echo "V${RELEASE}" >/opt/cwa/version.txt
+  echo "V${RELEASE}" >"$VER_DIR"/cwa.txt
   systemctl -q enable --now cwa.target
   $shh apt autoremove
   $shh apt autoclean
@@ -427,11 +427,11 @@ replacer() {
 
   # Deal with edge case(s)
   sed -i -e "s|\"/admin$CONFIG\"|\"/admin$OLD_CONFIG\"|" \
-    -e "s|app/LSCW_RELEASE|opt/calibre-web/calibreweb_version.txt|g" \
-    -e "s|app/CWA_RELEASE|opt/cwa/version.txt|g" \
-    -e "s|app/CALIBRE_RELEASE|opt/calibre_version.txt|g" \
+    -e "s|app/LSCW_RELEASE|\"$VER_DIR\"/calibre-web.txt|g" \
+    -e "s|app/CWA_RELEASE|\"$VER_DIR\"/cwa.txt|g" \
+    -e "s|app/CALIBRE_RELEASE|\"$VER_DIR\"/calibre.txt|g" \
     -e "s/lscw_version/calibreweb_version/g" \
-    -e "s|app/KEPUBIFY_RELEASE|opt/kepubify/version.txt|g" \
+    -e "s|app/KEPUBIFY_RELEASE|\"$VER_DIR\"kepubify.txt|g" \
     -e "s|app/cwa_update_notice|opt/.cwa_update_notice|g" \
     $APP/admin.py $APP/render_template.py
   sed -i "s|\"$CONFIG/post_request\"|\"$OLD_CONFIG/post_request\"|; s|python3|/opt/venv/bin/python3|g" $APP/cwa_functions.py
