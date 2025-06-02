@@ -601,7 +601,7 @@ update() {
 
 service_check() {
   local services=("cps" "cwa-ingester" "cwa-change-detector" "cwa-autozip.timer")
-  local status=""
+  local status
   readarray -t status < <(for service in "${services[@]}"; do
     systemctl is-active "$service" | grep "^active" -
   done)
