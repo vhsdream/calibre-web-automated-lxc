@@ -438,12 +438,12 @@ replacer() {
 
   # Deal with edge case(s)
   sed -i -e "s|\"/admin$CONFIG\"|\"/admin$OLD_CONFIG\"|" \
-    -e "s|app/LSCW_RELEASE|\"$VER_DIR\"/calibre-web.txt|g" \
-    -e "s|app/CWA_RELEASE|\"$VER_DIR\"/cwa.txt|g" \
-    -e "s|app/CALIBRE_RELEASE|\"$VER_DIR\"/calibre.txt|g" \
+    -e "s|/app/LSCW_RELEASE|${VER_DIR}/calibre-web.txt|g" \
+    -e "s|/app/CWA_RELEASE|${VER_DIR}/cwa.txt|g" \
+    -e "s|/CALIBRE_RELEASE|${VER_DIR}/calibre.txt|g" \
     -e "s/lscw_version/calibreweb_version/g" \
-    -e "s|app/KEPUBIFY_RELEASE|\"$VER_DIR\"kepubify.txt|g" \
-    -e "s|app/cwa_update_notice|opt/.cwa_update_notice|g" \
+    -e "s|/app/KEPUBIFY_RELEASE|${VER_DIR}/kepubify.txt|g" \
+    -e "s|/app/cwa_update_notice|/opt/.cwa_update_notice|g" \
     $APP/admin.py $APP/render_template.py
   sed -i "s|\"$CONFIG/post_request\"|\"$OLD_CONFIG/post_request\"|; s|python3|/opt/venv/bin/python3|g" $APP/cwa_functions.py
   sed -i -e "/^# Define user/,/^os.chown/d" -e "/nbp.set_l\|self.set_l/d" -e "/def set_libr/,/^$/d" \
