@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# v1.1.1
+# v1.2.0
 # Copyright 2025
 # Author: vhsdream
 # License: GNU GPL
@@ -14,8 +14,8 @@ usage() {
   header
   cat <<EOF
 Functions:
-'install'   Installs Calibre-Web Automated on a Debian 12 LXC in Proxmox.
-'update'    Checks for updates to Calibre-Web Automated upstream and applies them to an existing installation.
+'install'   Installs Calibre-Web Automated.
+'update'    Checks for updates to Kepubify, Calibre-Web, and Calibre-Web Automated upstream and applies them to an existing installation.
 
 Available options:
 -h, --help      Print this help and exit
@@ -167,6 +167,7 @@ OLD_META_LOGS="$OLD_BASE/metadata_change_logs"
 META_LOGS="$CONFIG/metadata_change_logs"
 INGEST="cwa-book-ingest"
 CONVERSION=".cwa_conversion_tmp"
+CWA_RELEASE="$(curl -s https://api.github.com/repos/crocodilestick/Calibre-Web-Automated/releases/latest | grep "tag_name" | awk '{print substr($2, 3, length($2)-4) }')"
 
 # Main functions
 install() {
@@ -254,10 +255,9 @@ EOF
 
   msg_start "Installing Calibre-Web Automated..."
   cd /tmp
-  RELEASE=$(curl -s https://api.github.com/repos/crocodilestick/Calibre-Web-Automated/releases/latest | grep "tag_name" | awk '{print substr($2, 3, length($2)-4) }')
-  wget -q "https://github.com/crocodilestick/Calibre-Web-Automated/archive/refs/tags/V$RELEASE.zip" -O cwa.zip
+  curl -fsSL "https://github.com/crocodilestick/Calibre-Web-Automated/archive/refs/tags/V$CWA_RELEASE.zip" -o cwa.zip
   unzip -q cwa.zip
-  mv Calibre-Web-Automated-"$RELEASE"/ /opt/cwa
+  mv Calibre-Web-Automated-"$CWA_RELEASE"/ "$BASE"
   cd /opt/cwa
   uv -q pip install -r requirements.txt
   deactivate
@@ -273,7 +273,6 @@ EOF
   # patcher functions
   replacer
   script_generator
-  chown -R calibre:calibre "$BASE" "$CONFIG" "$VER_DIR" /opt/{"$INGEST",calibre-web,venv,.cwa_update_notice}
   msg_done "Patching operations successful!"
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
@@ -377,9 +376,10 @@ EOF
   WantedBy=timers.target
 EOF
 
-  cd scripts
+  cd "$SCRIPTS"
   chmod +x check-cwa-services.sh ingest-service.sh change-detector.sh
-  echo "V${RELEASE}" >"$VER_DIR"/cwa.txt
+  echo "V${CWA_RELEASE}" >"$VER_DIR"/cwa.txt
+  chown -R calibre:calibre "$BASE" "$CONFIG" "$VER_DIR" /opt/{"$INGEST",calibre-web,venv,.cwa_update_notice}
   systemctl -q enable --now cwa.target
   $shh apt autoremove
   $shh apt autoclean
@@ -390,7 +390,6 @@ EOF
 
 service_check() {
   local services=("cps" "cwa-ingester" "cwa-change-detector" "cwa-autozip.timer")
-  local status
   readarray -t status < <(for service in "${services[@]}"; do
     systemctl is-active "$service" | grep "^active" -
   done)
@@ -535,10 +534,70 @@ else
     fi
 fi
 EOF
+  cd "$SCRIPTS"
+  chmod +x check-cwa-services.sh ingest-service.sh change-detector.sh
 }
 
 update() {
-  msg_info "${RED}Sorry, I lied, updating is not yet implemented!${CLR}"
+  if [[ ! -d "$BASE" ]] || [[ ! -d /opt/calibre-web ]]; then
+    die "Is Calibre-Web even installed???"
+  fi
+
+  header
+  sleep 2
+  msg_start "Updating the OS..."
+  $shh apt update
+  $shh apt dist-upgrade -y
+  msg_done "OS updated."
+
+  if [[ "$CWA_RELEASE" != "$(cat "$VER_DIR"/cwa.txt)" ]]; then
+    msg_start "Stopping all Calibre-Web Automated services..."
+    systemctl stop cps cwa-ingester cwa-change-detector cwa-autozip.timer
+    msg_done "CWA Services stopped!"
+
+    KEPUB_RELEASE="$(curl -s https://api.github.com/repos/pgaskin/kepubify/releases/latest | grep "tag_name" | awk '{print substr($2, 3, length($2)-4) }')"
+    if [[ "$KEPUB_RELEASE" != "$(cat "$VER_DIR"/kepubify.txt)" ]]; then
+      msg_start "Updating Kepubify..."
+      curl -fsSL https://github.com/pgaskin/kepubify/releases/latest/download/kepubify-linux-64bit -o /usr/bin/kepubify
+      chmod +x /usr/bin/kepubify
+      echo "$KEPUB_RELEASE" >"$VER_DIR"/kepubify.txt
+      msg_done "Kepubify updated!"
+    fi
+
+    msg_start "Updating Calibre-Web..."
+    cd /opt/calibre-web
+    source /opt/venv/bin/activate
+    uv -q pip install --upgrade calibreweb[goodreads,metadata,kobo]
+    uv -q pip list | grep calibreweb | awk '{print $2}' >"$VER_DIR"/calibre-web.txt
+    msg_done "Calibre-Web updated!"
+
+    msg_start "Updating Calibre-Web Automated, please wait..."
+    cd /tmp
+    curl -fsSL "https://github.com/crocodilestick/Calibre-Web-Automated/archive/refs/tags/V$CWA_RELEASE.zip" -o cwa.zip
+    unzip -q cwa.zip
+    cp "$BASE"/dirs.json /opt/dirs.json.bak
+    rm -rf "$BASE"
+    mv Calibre-Web-Automated-"$CWA_RELEASE"/ "$BASE"
+    cd "$BASE"
+    uv -q pip install -r requirements.txt
+    deactivate
+    mv /opt/dirs.json.bak "$BASE"/dirs.json
+    msg_done "Calibre-Web Automated updated!"
+
+    msg_start "Running patching operations..."
+    replacer
+    script_generator
+    msg_done "Patching completed!"
+
+    msg_start "Cleaning up & restarting CWA services..."
+    rm -r /tmp/cwa.zip
+    echo "$CWA_RELEASE" >"$VER_DIR"/cwa.txt
+    chown -R calibre:calibre "$BASE" "$CONFIG" "$VER_DIR" /opt/{"$INGEST",calibre-web,venv}
+    systemctl start cps cwa-ingester cwa-change-detector cwa-autozip.timer
+    service_check update
+  else
+    msg_info "Calibre-Web Automated is already up-to-date, you have version $CWA_RELEASE. Goodbye!"
+  fi
 }
 
 [ "$(id -u)" -ne 0 ] && die "This script requires root privileges. Please run with sudo or as the root user."
