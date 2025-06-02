@@ -378,7 +378,7 @@ EOF
 
   cd scripts
   chmod +x check-cwa-services.sh ingest-service.sh change-detector.sh
-  echo "V${RELEASE}" >"$VER_DIR"/cwa.txt
+  echo "V${CWA_RELEASE}" >"$VER_DIR"/cwa.txt
   chown -R calibre:calibre "$BASE" "$CONFIG" "$VER_DIR" /opt/{"$INGEST",calibre-web,venv,.cwa_update_notice}
   systemctl -q enable --now cwa.target
   $shh apt autoremove
@@ -390,7 +390,6 @@ EOF
 
 service_check() {
   local services=("cps" "cwa-ingester" "cwa-change-detector" "cwa-autozip.timer")
-  local status
   readarray -t status < <(for service in "${services[@]}"; do
     systemctl is-active "$service" | grep "^active" -
   done)
@@ -548,18 +547,17 @@ update() {
   $shh apt update && apt dist-upgrade -y
   msg_done "OS updated."
 
-  if [[ "$CWA_RELEASE" != "$(cat $BASE/version.txt)" ]]; then
+  if [[ "$CWA_RELEASE" != "$(cat "$VER_DIR"/cwa.txt)" ]]; then
     msg_start "Stopping all Calibre-Web Automated services..."
     systemctl stop cps cwa-ingester cwa-change-detector cwa-autozip.timer
     msg_done "CWA Services stopped!"
 
     KEPUB_RELEASE="$(curl -s https://api.github.com/repos/pgaskin/kepubify/releases/latest | grep "tag_name" | awk '{print substr($2, 3, length($2)-4) }')"
-    if [[ "$KEPUB_RELEASE" != "$(cat /opt/kepubify_version.txt)" ]]; then
+    if [[ "$KEPUB_RELEASE" != "$(cat "$VER_DIR"/kepubify.txt)" ]]; then
       msg_start "Updating Kepubify..."
-      cd /opt/kepubify
-      curl -fsSLO https://github.com/pgaskin/kepubify/releases/latest/download/kepubify-linux-64bit &>/dev/null
-      chmod +x ./kepubify-linux-64bit
-      echo "$KEPUB_RELEASE" >./kepubify_version.txt
+      curl -fsSL https://github.com/pgaskin/kepubify/releases/latest/download/kepubify-linux-64bit -o /usr/bin/kepubify
+      chmod +x /usr/bin/kepubify
+      echo "$KEPUB_RELEASE" >"$VER_DIR"/kepubify.txt
       msg_done "Kepubify updated!"
     fi
 
@@ -567,7 +565,7 @@ update() {
     cd /opt/calibre-web
     source /opt/venv/bin/activate
     uv -q pip install --upgrade calibreweb[goodreads,metadata,kobo]
-    uv -q pip list | grep calibreweb | awk '{print $2}' >/opt/calibre-web/calibreweb_version.txt
+    uv -q pip list | grep calibreweb | awk '{print $2}' >"$VER_DIR"/calibre-web.txt
     msg_done "Calibre-Web updated!"
 
     msg_start "Updating Calibre-Web Automated, please wait..."
@@ -586,42 +584,16 @@ update() {
     msg_start "Running patching operations..."
     replacer
     script_generator
-    chown -R calibre:calibre "$BASE" "$CONFIG" /opt/{"$INGEST",kepubify,calibre-web,venv}
     msg_done "Patching completed!"
 
     msg_start "Cleaning up & restarting CWA services..."
     rm -r /tmp/cwa.zip
-    echo "$CWA_RELEASE" >"$BASE"/version.txt
+    echo "$CWA_RELEASE" >"$VER_DIR"/cwa.txt
+    chown -R calibre:calibre "$BASE" "$CONFIG" "$VER_DIR" /opt/{"$INGEST",calibre-web,venv}
     systemctl start cps cwa-ingester cwa-change-detector cwa-autozip.timer
     service_check update
   else
     msg_info "Calibre-Web Automated is already up-to-date, you have version $CWA_RELEASE. Goodbye!"
-  fi
-}
-
-service_check() {
-  local services=("cps" "cwa-ingester" "cwa-change-detector" "cwa-autozip.timer")
-  local status
-  readarray -t status < <(for service in "${services[@]}"; do
-    systemctl is-active "$service" | grep "^active" -
-  done)
-  if [[ "${#status[@]}" -eq 4 ]]; then
-    if [[ "$1" == "install" ]]; then
-      msg_done "Calibre-Web Automated is live!"
-      sleep 1
-      LOCAL_IP=$(hostname -I | awk '{print $1}')
-      msg_info "Go to ${YELLOW}http://$LOCAL_IP:8083${CLR} to login"
-      sleep 2
-      msg_info "${PURPLE}Default creds are user: 'admin', password: 'admin123'${CLR}"
-      exit
-    elif [[ "$1" == "update" ]]; then
-      msg_done "Calibre-Web Automated is fully updated and running!"
-      sleep 1
-      msg_info "Enjoy your shiny new ${PURPLE}Calibre-Web Automated LXC!${CLR}"
-      exit
-    fi
-  else
-    die "Something's not right, please check CWA services!"
   fi
 }
 
