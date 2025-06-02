@@ -385,19 +385,30 @@ EOF
   $shh apt autoclean
   rm -f /tmp/cwa.zip
   sleep 3
-  local services=("cps" "cwa-ingester" "cwa-change-detector")
-  local status=""
-  status=$(for service in "${services[@]}"; do
+  service_check install
+}
+
+service_check() {
+  local services=("cps" "cwa-ingester" "cwa-change-detector" "cwa-autozip.timer")
+  local status
+  readarray -t status < <(for service in "${services[@]}"; do
     systemctl is-active "$service" | grep "^active" -
   done)
-  if [[ "${#status[@]}" -eq 3 ]]; then
-    msg_done "Calibre-Web Automated is live!"
-    sleep 1
-    LOCAL_IP=$(hostname -I | awk '{print $1}')
-    msg_info "Go to ${YELLOW}http://$LOCAL_IP:8083${CLR} to login"
-    sleep 2
-    msg_info "${PURPLE}Default creds are user: 'admin', password: 'admin123'${CLR}"
-    exit 0
+  if [[ "${#status[@]}" -eq 4 ]]; then
+    if [[ "$1" == "install" ]]; then
+      msg_done "Calibre-Web Automated is live!"
+      sleep 1
+      LOCAL_IP=$(hostname -I | awk '{print $1}')
+      msg_info "Go to ${YELLOW}http://$LOCAL_IP:8083${CLR} to login"
+      sleep 2
+      msg_info "${PURPLE}Default creds are user: 'admin', password: 'admin123'${CLR}"
+      exit
+    elif [[ "$1" == "update" ]]; then
+      msg_done "Calibre-Web Automated is fully updated and running!"
+      sleep 1
+      msg_info "Enjoy your shiny new ${PURPLE}Calibre-Web Automated LXC!${CLR}"
+      exit
+    fi
   else
     die "Something's not right, please check CWA services!"
   fi
