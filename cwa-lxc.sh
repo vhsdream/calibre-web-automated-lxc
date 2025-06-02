@@ -273,7 +273,6 @@ EOF
   # patcher functions
   replacer
   script_generator
-  chown -R calibre:calibre "$BASE" "$CONFIG" "$VER_DIR" /opt/{"$INGEST",calibre-web,venv,.cwa_update_notice}
   msg_done "Patching operations successful!"
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
@@ -380,6 +379,7 @@ EOF
   cd scripts
   chmod +x check-cwa-services.sh ingest-service.sh change-detector.sh
   echo "V${RELEASE}" >"$VER_DIR"/cwa.txt
+  chown -R calibre:calibre "$BASE" "$CONFIG" "$VER_DIR" /opt/{"$INGEST",calibre-web,venv,.cwa_update_notice}
   systemctl -q enable --now cwa.target
   $shh apt autoremove
   $shh apt autoclean
