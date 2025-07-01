@@ -276,29 +276,10 @@ EOF
   msg_done "Patching operations successful!"
 
   msg_start "Creating & starting services & timers, confirming a successful start..."
-  cat <<EOF >/etc/systemd/system/cwa-autolibrary.service
-  [Unit]
-  Description=Calibre-Web Automated Auto-Library Service
-  After=network.target cps.service
-
-  [Service]
-  Type=simple
-  User=calibre
-  Group=calibre
-  WorkingDirectory=/opt/cwa
-  ExecStart=/opt/venv/bin/python3 /opt/cwa/scripts/auto_library.py
-  TimeoutStopSec=10
-  KillMode=process
-  Restart=on-failure
-
-  [Install]
-  WantedBy=multi-user.target
-EOF
-
   cat <<EOF >/etc/systemd/system/cwa-ingester.service
   [Unit]
   Description=Calibre-Web Automated Ingest Service
-  After=network.target cps.service cwa-autolibrary.service
+  After=network.target cps.service
 
   [Service]
   Type=simple
@@ -317,7 +298,7 @@ EOF
   cat <<EOF >/etc/systemd/system/cwa-change-detector.service
   [Unit]
   Description=Calibre-Web Automated Metadata Change Detector Service
-  After=network.target cps.service cwa-autolibrary.service
+  After=network.target cps.service
 
   [Service]
   Type=simple
@@ -337,7 +318,7 @@ EOF
   [Unit]
   Description=Calibre-Web Automated Services
   After=network-online.target
-  Wants=cps.service cwa-autolibrary.service cwa-ingester.service cwa-change-detector.service cwa-autozip.timer
+  Wants=cps.service cwa-ingester.service cwa-change-detector.service cwa-autozip.timer
 
   [Install]
   WantedBy=multi-user.target
@@ -378,6 +359,7 @@ EOF
 
   cd "$SCRIPTS"
   chmod +x check-cwa-services.sh ingest-service.sh change-detector.sh
+  /opt/venv/bin/python3 "$SCRIPTS"/auto_library.py
   echo "V${CWA_RELEASE}" >"$VER_DIR"/cwa.txt
   chown -R calibre:calibre "$BASE" "$CONFIG" "$VER_DIR" /opt/{"$INGEST",calibre-web,venv,.cwa_update_notice}
   systemctl -q enable --now cwa.target
